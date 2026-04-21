@@ -31,60 +31,86 @@ fun BuzzCartApp() {
     var text by remember { mutableStateOf("") }
     var items by remember { mutableStateOf(listOf<CartItem>()) }
 
-    Column(modifier = Modifier
-        .fillMaxSize()
-        .padding(16.dp)
-        .systemBarsPadding()
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(16.dp)
+            .systemBarsPadding()
     ) {
+        Text(
+            text = "BuzzCart",
+            style = MaterialTheme.typography.headlineMedium
+        )
 
-        Row {
+        Spacer(modifier = Modifier.height(16.dp))
+
+        Row(
+            modifier = Modifier.fillMaxWidth()
+        ) {
             TextField(
                 value = text,
                 onValueChange = { text = it },
                 modifier = Modifier.weight(1f),
-                placeholder = { Text("Add item (milk, eggs...)") }
+                placeholder = { Text("Add item") }
             )
 
             Spacer(modifier = Modifier.width(8.dp))
 
-            Button(onClick = {
-                if (text.isNotBlank()) {
-                    items = items + CartItem(name = text)
-                    text = ""
+            Button(
+                onClick = {
+                    if (text.isNotBlank()) {
+                        items = items + CartItem(name = text.trim())
+                        text = ""
+                    }
                 }
-            }) {
-                Text("+")
+            ) {
+                Text("Add")
             }
         }
 
         Spacer(modifier = Modifier.height(16.dp))
 
-        LazyColumn {
+        LazyColumn(
+            verticalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
             items(items) { item ->
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(8.dp),
-                    horizontalArrangement = Arrangement.SpaceBetween
+                Card(
+                    modifier = Modifier.fillMaxWidth()
                 ) {
-                    Row {
-                        Checkbox(
-                            checked = item.isChecked,
-                            onCheckedChange = {
-                                items = items.map {
-                                    if (it == item) it.copy(isChecked = !it.isChecked)
-                                    else it
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(12.dp),
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        Row(
+                            modifier = Modifier.weight(1f)
+                        ) {
+                            Checkbox(
+                                checked = item.isChecked,
+                                onCheckedChange = {
+                                    items = items.map {
+                                        if (it == item) it.copy(isChecked = !it.isChecked)
+                                        else it
+                                    }
                                 }
+                            )
+
+                            Spacer(modifier = Modifier.width(8.dp))
+
+                            Text(
+                                text = item.name,
+                                modifier = Modifier.padding(top = 12.dp)
+                            )
+                        }
+
+                        TextButton(
+                            onClick = {
+                                items = items - item
                             }
-                        )
-
-                        Text(text = item.name)
-                    }
-
-                    Button(onClick = {
-                        items = items - item
-                    }) {
-                        Text("X")
+                        ) {
+                            Text("Delete")
+                        }
                     }
                 }
             }
