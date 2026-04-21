@@ -9,6 +9,7 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
+import com.applonic.buzzcart.model.CartItem
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -20,12 +21,21 @@ class MainActivity : ComponentActivity() {
     }
 }
 
+data class CartItem(
+    val name: String,
+    val isChecked: Boolean = false
+)
+
 @Composable
 fun BuzzCartApp() {
     var text by remember { mutableStateOf("") }
-    var items by remember { mutableStateOf(listOf<String>()) }
+    var items by remember { mutableStateOf(listOf<CartItem>()) }
 
-    Column(modifier = Modifier.padding(16.dp)) {
+    Column(modifier = Modifier
+        .fillMaxSize()
+        .padding(16.dp)
+        .systemBarsPadding()
+    ) {
 
         Row {
             TextField(
@@ -39,7 +49,7 @@ fun BuzzCartApp() {
 
             Button(onClick = {
                 if (text.isNotBlank()) {
-                    items = items + text
+                    items = items + CartItem(name = text)
                     text = ""
                 }
             }) {
@@ -51,10 +61,32 @@ fun BuzzCartApp() {
 
         LazyColumn {
             items(items) { item ->
-                Text(
-                    text = "• $item",
-                    modifier = Modifier.padding(8.dp)
-                )
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(8.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    Row {
+                        Checkbox(
+                            checked = item.isChecked,
+                            onCheckedChange = {
+                                items = items.map {
+                                    if (it == item) it.copy(isChecked = !it.isChecked)
+                                    else it
+                                }
+                            }
+                        )
+
+                        Text(text = item.name)
+                    }
+
+                    Button(onClick = {
+                        items = items - item
+                    }) {
+                        Text("X")
+                    }
+                }
             }
         }
     }
