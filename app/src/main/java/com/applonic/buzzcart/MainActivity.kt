@@ -16,6 +16,7 @@ import com.applonic.buzzcart.data.BuzzCartDatabase
 import com.applonic.buzzcart.data.CartItemDao
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import androidx.lifecycle.viewmodel.compose.viewModel
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -39,9 +40,14 @@ class MainActivity : ComponentActivity() {
 
 @Composable
 fun BuzzCartApp(dao: CartItemDao) {
-    val scope = rememberCoroutineScope()
+    val viewModel: BuzzCartViewModel = viewModel(factory = object : androidx.lifecycle.ViewModelProvider.Factory {
+        override fun <T : androidx.lifecycle.ViewModel> create(modelClass: Class<T>): T {
+            return BuzzCartViewModel(dao) as T
+        }
+    })
+
     var text by remember { mutableStateOf("") }
-    val cartItems by dao.getAll().collectAsState(initial = emptyList())
+    val cartItems by viewModel.cartItems.collectAsState(initial = emptyList())
 
     Column(
         modifier = Modifier
@@ -71,12 +77,8 @@ fun BuzzCartApp(dao: CartItemDao) {
             Button(
                 onClick = {
                     if (text.isNotBlank()) {
-                        val newItem = CartItem(name = text.trim())
 
-                        scope.launch(Dispatchers.IO) {
-                            dao.insert(newItem)
-                        }
-
+                        viewModel.addItem(text.trim())
                         text = ""
                     }
                 }
@@ -106,11 +108,7 @@ fun BuzzCartApp(dao: CartItemDao) {
                             Checkbox(
                                 checked = item.isChecked,
                                 onCheckedChange = {
-                                    val updatedItem = item.copy(isChecked = !item.isChecked)
-
-                                    scope.launch(Dispatchers.IO) {
-                                        dao.update(updatedItem)
-                                    }
+                                    viewModel.toggleItem(item)
                                 }
                             )
 
@@ -124,9 +122,7 @@ fun BuzzCartApp(dao: CartItemDao) {
 
                         TextButton(
                             onClick = {
-                                scope.launch(Dispatchers.IO) {
-                                    dao.delete(item)
-                                }
+                                viewModel.deleteItem(item)
                             }
                         ){
                             Text("Delete")
