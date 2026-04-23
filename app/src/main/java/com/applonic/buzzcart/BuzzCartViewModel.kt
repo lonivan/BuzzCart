@@ -3,32 +3,36 @@ package com.applonic.buzzcart
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.applonic.buzzcart.data.CartItemDao
+import com.applonic.buzzcart.data.CartItemRepository
 import com.applonic.buzzcart.model.CartItem
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.launch
 
+// Handles business logic and communicates between UI and Repository
 class BuzzCartViewModel(
-    private val dao: CartItemDao
+    private val repository: CartItemRepository
 ) : ViewModel() {
 
-    val cartItems: Flow<List<CartItem>> = dao.getAll()
+    // Flow emits updates automatically when database changes
+    val cartItems: Flow<List<CartItem>> = repository.cartItems
 
     fun addItem(name: String) {
+        // Run DB operations on background thread
         viewModelScope.launch(Dispatchers.IO) {
-            dao.insert(CartItem(name = name))
+            repository.insert(CartItem(name = name))
         }
     }
 
     fun deleteItem(item: CartItem) {
         viewModelScope.launch(Dispatchers.IO) {
-            dao.delete(item)
+            repository.delete(item)
         }
     }
 
     fun toggleItem(item: CartItem) {
         viewModelScope.launch(Dispatchers.IO) {
-            dao.update(item.copy(isChecked = !item.isChecked))
+            repository.update(item.copy(isChecked = !item.isChecked))
         }
     }
 }

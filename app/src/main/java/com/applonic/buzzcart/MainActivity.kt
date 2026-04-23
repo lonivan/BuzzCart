@@ -9,14 +9,11 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
-import com.applonic.buzzcart.model.CartItem
 import androidx.room.Room
 import androidx.compose.runtime.collectAsState
 import com.applonic.buzzcart.data.BuzzCartDatabase
-import com.applonic.buzzcart.data.CartItemDao
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.launch
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.applonic.buzzcart.data.CartItemRepository
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -29,20 +26,20 @@ class MainActivity : ComponentActivity() {
         ).build()
 
         val dao = db.cartItemDao()
+        val repository = CartItemRepository(dao)
 
         setContent {
-            BuzzCartApp(dao)
+            BuzzCartApp(repository)
         }
     }
 }
 
 
-
 @Composable
-fun BuzzCartApp(dao: CartItemDao) {
+fun BuzzCartApp(repository: CartItemRepository) {
     val viewModel: BuzzCartViewModel = viewModel(factory = object : androidx.lifecycle.ViewModelProvider.Factory {
         override fun <T : androidx.lifecycle.ViewModel> create(modelClass: Class<T>): T {
-            return BuzzCartViewModel(dao) as T
+            return BuzzCartViewModel(repository) as T
         }
     })
 
