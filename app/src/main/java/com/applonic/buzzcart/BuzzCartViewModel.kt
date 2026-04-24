@@ -2,7 +2,6 @@ package com.applonic.buzzcart
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.applonic.buzzcart.data.CartItemDao
 import com.applonic.buzzcart.data.CartItemRepository
 import com.applonic.buzzcart.model.CartItem
 import kotlinx.coroutines.Dispatchers

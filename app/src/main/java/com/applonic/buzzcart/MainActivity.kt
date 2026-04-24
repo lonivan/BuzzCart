@@ -1,7 +1,10 @@
 package com.applonic.buzzcart
+import android.annotation.SuppressLint
+import android.app.PendingIntent
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -9,13 +12,53 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
-import androidx.room.Room
-import androidx.compose.runtime.collectAsState
-import com.applonic.buzzcart.data.BuzzCartDatabase
 import androidx.lifecycle.viewmodel.compose.viewModel
+import androidx.room.Room
+import com.applonic.buzzcart.data.BuzzCartDatabase
 import com.applonic.buzzcart.data.CartItemRepository
+import com.applonic.buzzcart.location.GeofenceManager
+import com.google.android.gms.location.GeofencingClient
+import com.google.android.gms.location.GeofencingRequest
+import com.google.android.gms.location.LocationServices
+import com.google.android.gms.location.Priority
 
 class MainActivity : ComponentActivity() {
+    private lateinit var geofencingClient: GeofencingClient
+    private lateinit var geofenceRequest: GeofencingRequest
+    private lateinit var geofencePendingIntent: PendingIntent
+    //request location permission at runtime
+    private val requestPermissionLauncher =
+        registerForActivityResult(ActivityResultContracts.RequestMultiplePermissions()) { permissions ->
+
+            val granted = permissions[android.Manifest.permission.ACCESS_FINE_LOCATION] == true
+
+            @SuppressLint("MissingPermission")
+            LocationServices.getFusedLocationProviderClient(this)
+                .getCurrentLocation(Priority.PRIORITY_HIGH_ACCURACY, null)
+                .addOnSuccessListener { location ->
+                    android.util.Log.d(
+                        "GEOFENCE",
+                        "Current location: ${location?.latitude}, ${location?.longitude}"
+                    )
+                }
+                .addOnFailureListener { error ->
+                    android.util.Log.e("GEOFENCE", "Failed to get current location", error)
+                }
+
+            if (granted) {
+                //register the geofence
+                @SuppressLint("MissingPermission")
+                geofencingClient.addGeofences(
+                    geofenceRequest,
+                    geofencePendingIntent
+                ).addOnSuccessListener {
+                    android.util.Log.d("GEOFENCE", "Geofence registered successfully")
+                }.addOnFailureListener { exception ->
+                    android.util.Log.e("GEOFENCE", "Geofence registration failed", exception)
+                }
+            }
+        }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
@@ -27,6 +70,29 @@ class MainActivity : ComponentActivity() {
 
         val dao = db.cartItemDao()
         val repository = CartItemRepository(dao)
+
+        requestPermissionLauncher.launch(
+            arrayOf(
+                android.Manifest.permission.ACCESS_FINE_LOCATION,
+                android.Manifest.permission.ACCESS_COARSE_LOCATION
+            )
+        )
+
+        val geofenceManager = GeofenceManager(this)
+        geofencingClient = LocationServices.getGeofencingClient(this)
+
+        val geofence = geofenceManager.createGeofence(
+            id = "aldi_geofence",
+            lat = 53.56538,
+            lng = 9.9424233,
+            radius = 200f
+        )
+
+        geofenceRequest = geofenceManager.createRequest(geofence)
+        geofencePendingIntent = geofenceManager.createPendingIntent()
+
+
+
 
         setContent {
             BuzzCartApp(repository)
