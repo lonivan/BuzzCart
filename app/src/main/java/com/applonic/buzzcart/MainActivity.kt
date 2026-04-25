@@ -89,8 +89,8 @@ class MainActivity : ComponentActivity() {
 
         val geofence = geofenceManager.createGeofence(
             id = "rewe_geofence",
-            lat = 53.550606,
-            lng = 9.9933234,
+            lat = 53.56538,
+            lng = 9.9424233,
             radius = 50f
         )
 

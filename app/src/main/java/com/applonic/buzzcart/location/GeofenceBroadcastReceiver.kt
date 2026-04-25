@@ -8,6 +8,8 @@ import com.google.android.gms.location.GeofencingEvent
 import kotlinx.coroutines.runBlocking
 import androidx.room.Room
 import com.applonic.buzzcart.data.BuzzCartDatabase
+import android.app.PendingIntent
+
 
 class GeofenceBroadcastReceiver : BroadcastReceiver() {
 
@@ -38,6 +40,16 @@ class GeofenceBroadcastReceiver : BroadcastReceiver() {
                 }.joinToString("\n")
             }
 
+           // Opens app when user taps notification
+            val intent = Intent(context, com.applonic.buzzcart.MainActivity::class.java)
+
+            val pendingIntent = PendingIntent.getActivity(
+                context,
+                0,
+                intent,
+                PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+            )
+
             // notification builder
             val notification = android.app.Notification.Builder(context, "buzzcart_location_reminders")
                 .setContentTitle("You are near a store")
@@ -47,6 +59,8 @@ class GeofenceBroadcastReceiver : BroadcastReceiver() {
                         .bigText("Buy:\n$itemText")
                 )
                 .setSmallIcon(android.R.drawable.ic_dialog_info)
+                .setContentIntent(pendingIntent) // opens app when user taps notification
+                .setAutoCancel(true) // removes notification after tap
                 .build()
 
             notificationManager.notify(1, notification)
