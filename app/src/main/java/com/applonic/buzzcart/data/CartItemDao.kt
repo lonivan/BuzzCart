@@ -18,4 +18,7 @@ interface CartItemDao {
 
     @Delete
     suspend fun delete(item: CartItem)
+
+    @Query("SELECT * FROM cart_items WHERE isChecked = 0")
+    suspend fun getUncheckedItemsOnce(): List<CartItem>
 }

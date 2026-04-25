@@ -17,10 +17,12 @@ import androidx.room.Room
 import com.applonic.buzzcart.data.BuzzCartDatabase
 import com.applonic.buzzcart.data.CartItemRepository
 import com.applonic.buzzcart.location.GeofenceManager
+import com.applonic.buzzcart.notification.NotificationHelper
 import com.google.android.gms.location.GeofencingClient
 import com.google.android.gms.location.GeofencingRequest
 import com.google.android.gms.location.LocationServices
 import com.google.android.gms.location.Priority
+
 
 class MainActivity : ComponentActivity() {
     private lateinit var geofencingClient: GeofencingClient
@@ -71,28 +73,32 @@ class MainActivity : ComponentActivity() {
         val dao = db.cartItemDao()
         val repository = CartItemRepository(dao)
 
-        requestPermissionLauncher.launch(
-            arrayOf(
-                android.Manifest.permission.ACCESS_FINE_LOCATION,
-                android.Manifest.permission.ACCESS_COARSE_LOCATION
-            )
+        val permissions = mutableListOf(
+            android.Manifest.permission.ACCESS_FINE_LOCATION,
+            android.Manifest.permission.ACCESS_COARSE_LOCATION
         )
+
+        if (android.os.Build.VERSION.SDK_INT >= 33) {
+            permissions.add(android.Manifest.permission.POST_NOTIFICATIONS)
+        }
+
+        requestPermissionLauncher.launch(permissions.toTypedArray())
 
         val geofenceManager = GeofenceManager(this)
         geofencingClient = LocationServices.getGeofencingClient(this)
 
         val geofence = geofenceManager.createGeofence(
-            id = "aldi_geofence",
-            lat = 53.56538,
-            lng = 9.9424233,
-            radius = 200f
+            id = "rewe_geofence",
+            lat = 53.550606,
+            lng = 9.9933234,
+            radius = 50f
         )
 
         geofenceRequest = geofenceManager.createRequest(geofence)
         geofencePendingIntent = geofenceManager.createPendingIntent()
 
 
-
+        NotificationHelper.createNotificationChannel(this)
 
         setContent {
             BuzzCartApp(repository)
