@@ -112,7 +112,26 @@ class MainActivity : ComponentActivity() {
         setContent {
             BuzzCartApp(
                 repository = repository,
-                storeLocation = testStore
+                storeLocation = testStore,
+                // Re-create and register geofence with updated radius
+                onRadiusChanged = { newRadius ->
+                    val updatedStore = testStore.copy(radius = newRadius)
+
+                    val geofence = geofenceManager.createGeofence(
+                        id = updatedStore.name,
+                        lat = updatedStore.lat,
+                        lng = updatedStore.lng,
+                        radius = updatedStore.radius
+                    )
+
+                    geofenceRequest = geofenceManager.createRequest(geofence)
+
+                    @SuppressLint("MissingPermission")
+                    geofencingClient.addGeofences(
+                        geofenceRequest,
+                        geofencePendingIntent
+                    )
+                }
             )
         }
     }
@@ -120,7 +139,12 @@ class MainActivity : ComponentActivity() {
 
 
 @Composable
-fun BuzzCartApp(repository: CartItemRepository, storeLocation: StoreLocation) {
+fun BuzzCartApp(
+    repository: CartItemRepository,
+    storeLocation: StoreLocation,
+    onRadiusChanged: (Float) -> Unit // Callback used to notify MainActivity when user selects a new radius
+)
+    {
     val viewModel: BuzzCartViewModel = viewModel(factory = object : androidx.lifecycle.ViewModelProvider.Factory {
         override fun <T : androidx.lifecycle.ViewModel> create(modelClass: Class<T>): T {
             return BuzzCartViewModel(repository) as T
@@ -167,6 +191,7 @@ fun BuzzCartApp(repository: CartItemRepository, storeLocation: StoreLocation) {
                     onClick = {
                         // Update selected radius when user taps an option
                         selectedRadius = radius
+                        onRadiusChanged(radius)
                     }
                 ) {
                     Text("${radius.toInt()}m")
