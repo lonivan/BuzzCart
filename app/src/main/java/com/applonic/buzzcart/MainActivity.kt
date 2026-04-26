@@ -133,7 +133,25 @@ class MainActivity : ComponentActivity() {
                         geofenceRequest,
                         geofencePendingIntent
                     )
+                },
+                // Re-create and register geofence for newly selected store
+                onStoreChanged = { selectedStore ->
+                    val geofence = geofenceManager.createGeofence(
+                        id = selectedStore.name,
+                        lat = selectedStore.lat,
+                        lng = selectedStore.lng,
+                        radius = selectedStore.radius
+                    )
+
+                    geofenceRequest = geofenceManager.createRequest(geofence)
+
+                    @SuppressLint("MissingPermission")
+                    geofencingClient.addGeofences(
+                        geofenceRequest,
+                        geofencePendingIntent
+                    )
                 }
+
             )
         }
     }
@@ -144,7 +162,8 @@ class MainActivity : ComponentActivity() {
 fun BuzzCartApp(
     repository: CartItemRepository,
     storeLocation: StoreLocation,
-    onRadiusChanged: (Float) -> Unit // Callback used to notify MainActivity when user selects a new radius
+    onRadiusChanged: (Float) -> Unit, // Callback used to notify MainActivity when user selects a new radius
+    onStoreChanged: (StoreLocation) -> Unit // Callback to notify MainActivity when user selects a different store
 ) {
     val viewModel: BuzzCartViewModel =
         viewModel(factory = object : androidx.lifecycle.ViewModelProvider.Factory {
@@ -192,9 +211,9 @@ fun BuzzCartApp(
             style = MaterialTheme.typography.headlineMedium
         )
 
-        // Shows currently selected store settings
+        // Shows currently selected store from UI state
         Text(
-            text = "Current store: ${storeLocation.name}",
+            text = "Current store: ${selectedStore.name}",
             style = MaterialTheme.typography.bodyMedium
         )
 
@@ -214,7 +233,10 @@ fun BuzzCartApp(
                 DropdownMenuItem(
                     text = { Text(store.name) },
                     onClick = {
+                        // Update selected store and notify MainActivity to re-register geofence
                         selectedStore = store
+                        selectedRadius = store.radius
+                        onStoreChanged(store)
                         storeDropdownExpanded = false
                     }
                 )
