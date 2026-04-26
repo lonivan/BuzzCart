@@ -1,4 +1,5 @@
 package com.applonic.buzzcart
+
 import android.annotation.SuppressLint
 import android.app.PendingIntent
 import android.os.Bundle
@@ -29,6 +30,7 @@ class MainActivity : ComponentActivity() {
     private lateinit var geofencingClient: GeofencingClient
     private lateinit var geofenceRequest: GeofencingRequest
     private lateinit var geofencePendingIntent: PendingIntent
+
     //request location permission at runtime
     private val requestPermissionLauncher =
         registerForActivityResult(ActivityResultContracts.RequestMultiplePermissions()) { permissions ->
@@ -143,13 +145,13 @@ fun BuzzCartApp(
     repository: CartItemRepository,
     storeLocation: StoreLocation,
     onRadiusChanged: (Float) -> Unit // Callback used to notify MainActivity when user selects a new radius
-)
-    {
-    val viewModel: BuzzCartViewModel = viewModel(factory = object : androidx.lifecycle.ViewModelProvider.Factory {
-        override fun <T : androidx.lifecycle.ViewModel> create(modelClass: Class<T>): T {
-            return BuzzCartViewModel(repository) as T
-        }
-    })
+) {
+    val viewModel: BuzzCartViewModel =
+        viewModel(factory = object : androidx.lifecycle.ViewModelProvider.Factory {
+            override fun <T : androidx.lifecycle.ViewModel> create(modelClass: Class<T>): T {
+                return BuzzCartViewModel(repository) as T
+            }
+        })
 
     var text by remember { mutableStateOf("") }
     val cartItems by viewModel.cartItems.collectAsState(initial = emptyList())
@@ -157,6 +159,27 @@ fun BuzzCartApp(
     var selectedRadius by remember {
         mutableStateOf(storeLocation.radius)
     }
+    // UI state for currently selected store
+    var selectedStore by remember {
+        mutableStateOf(storeLocation)
+    }
+
+
+
+    // Temporary list of stores for dropdown selection
+    val stores = listOf(
+        StoreLocation("REWE", 53.5546, 9.9076, selectedRadius),
+        StoreLocation("ALDI", 53.5552, 9.9287, selectedRadius),
+        StoreLocation("EDEKA", 53.552904, 9.931791, selectedRadius),
+        StoreLocation("LIDL", 53.551890, 9.935514, selectedRadius)
+
+    )
+
+    // Controls whether the store dropdown is open
+    var storeDropdownExpanded by remember {
+        mutableStateOf(false)
+    }
+
 
     Column(
         modifier = Modifier
@@ -174,6 +197,29 @@ fun BuzzCartApp(
             text = "Current store: ${storeLocation.name}",
             style = MaterialTheme.typography.bodyMedium
         )
+
+
+        TextButton(
+            onClick = { storeDropdownExpanded = true }
+        ) {
+            Text("Change store")
+        }
+
+        // Dropdown to select store from predefined list
+        DropdownMenu(
+            expanded = storeDropdownExpanded,
+            onDismissRequest = { storeDropdownExpanded = false }
+        ) {
+            stores.forEach { store ->
+                DropdownMenuItem(
+                    text = { Text(store.name) },
+                    onClick = {
+                        selectedStore = store
+                        storeDropdownExpanded = false
+                    }
+                )
+            }
+        }
 
         Text(
             text = "Radius: ${selectedRadius.toInt()}m",
@@ -263,7 +309,7 @@ fun BuzzCartApp(
                             onClick = {
                                 viewModel.deleteItem(item)
                             }
-                        ){
+                        ) {
                             Text("Delete")
                         }
                     }
