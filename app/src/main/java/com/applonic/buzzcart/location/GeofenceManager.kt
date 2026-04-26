@@ -6,6 +6,14 @@ import com.google.android.gms.location.GeofencingRequest
 import android.app.PendingIntent
 import android.content.Intent
 
+
+data class StoreLocation(
+    val name: String,
+    val lat: Double,
+    val lng: Double,
+    val radius: Float
+)
+
 class GeofenceManager(
     private val context: Context
 ) {

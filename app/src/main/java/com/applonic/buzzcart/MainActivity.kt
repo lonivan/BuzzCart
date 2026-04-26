@@ -22,6 +22,7 @@ import com.google.android.gms.location.GeofencingClient
 import com.google.android.gms.location.GeofencingRequest
 import com.google.android.gms.location.LocationServices
 import com.google.android.gms.location.Priority
+import com.applonic.buzzcart.location.StoreLocation
 
 
 class MainActivity : ComponentActivity() {
@@ -87,11 +88,19 @@ class MainActivity : ComponentActivity() {
         val geofenceManager = GeofenceManager(this)
         geofencingClient = LocationServices.getGeofencingClient(this)
 
-        val geofence = geofenceManager.createGeofence(
-            id = "rewe_geofence",
+        // Temporary test store location (will be user-selected later)
+        val testStore = StoreLocation(
+            name = "REWE",
             lat = 53.56538,
             lng = 9.9424233,
-            radius = 50f
+            radius = 100f
+        )
+
+        val geofence = geofenceManager.createGeofence(
+            id = testStore.name,
+            lat = testStore.lat,
+            lng = testStore.lng,
+            radius = testStore.radius
         )
 
         geofenceRequest = geofenceManager.createRequest(geofence)
@@ -101,14 +110,17 @@ class MainActivity : ComponentActivity() {
         NotificationHelper.createNotificationChannel(this)
 
         setContent {
-            BuzzCartApp(repository)
+            BuzzCartApp(
+                repository = repository,
+                storeLocation = testStore
+            )
         }
     }
 }
 
 
 @Composable
-fun BuzzCartApp(repository: CartItemRepository) {
+fun BuzzCartApp(repository: CartItemRepository, storeLocation: StoreLocation) {
     val viewModel: BuzzCartViewModel = viewModel(factory = object : androidx.lifecycle.ViewModelProvider.Factory {
         override fun <T : androidx.lifecycle.ViewModel> create(modelClass: Class<T>): T {
             return BuzzCartViewModel(repository) as T
@@ -117,6 +129,10 @@ fun BuzzCartApp(repository: CartItemRepository) {
 
     var text by remember { mutableStateOf("") }
     val cartItems by viewModel.cartItems.collectAsState(initial = emptyList())
+    // UI state for currently selected radius option
+    var selectedRadius by remember {
+        mutableStateOf(storeLocation.radius)
+    }
 
     Column(
         modifier = Modifier
@@ -128,6 +144,35 @@ fun BuzzCartApp(repository: CartItemRepository) {
             text = "BuzzCart",
             style = MaterialTheme.typography.headlineMedium
         )
+
+        // Shows currently selected store settings
+        Text(
+            text = "Current store: ${storeLocation.name}",
+            style = MaterialTheme.typography.bodyMedium
+        )
+
+        Text(
+            text = "Radius: ${selectedRadius.toInt()}m",
+            style = MaterialTheme.typography.bodySmall
+        )
+
+        // Temporary radius options; TODO later these will update and re-register the geofence
+        Spacer(modifier = Modifier.height(8.dp))
+
+        Row(
+            horizontalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            listOf(50f, 100f, 200f, 500f).forEach { radius ->
+                Button(
+                    onClick = {
+                        // Update selected radius when user taps an option
+                        selectedRadius = radius
+                    }
+                ) {
+                    Text("${radius.toInt()}m")
+                }
+            }
+        }
 
         Spacer(modifier = Modifier.height(16.dp))
 
