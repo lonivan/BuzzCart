@@ -1,5 +1,4 @@
 package com.applonic.buzzcart
-
 import android.annotation.SuppressLint
 import android.app.PendingIntent
 import android.os.Bundle
@@ -24,7 +23,12 @@ import com.google.android.gms.location.GeofencingRequest
 import com.google.android.gms.location.LocationServices
 import com.google.android.gms.location.Priority
 import com.applonic.buzzcart.location.StoreLocation
-
+import androidx.datastore.preferences.core.*
+import com.applonic.buzzcart.data.SettingsDataStore
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
+import androidx.lifecycle.lifecycleScope
+import kotlinx.coroutines.launch
 
 class MainActivity : ComponentActivity() {
     private lateinit var geofencingClient: GeofencingClient
@@ -66,6 +70,9 @@ class MainActivity : ComponentActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+
+
+
 
         val db = Room.databaseBuilder(
             applicationContext,
@@ -111,12 +118,33 @@ class MainActivity : ComponentActivity() {
 
         NotificationHelper.createNotificationChannel(this)
 
+        val settingsDataStore = SettingsDataStore(applicationContext)
+
         setContent {
+            // Observe saved store and radius from DataStore
+            val savedSettings by settingsDataStore
+                .getSettingsFlow()
+                .collectAsState(initial = "REWE" to 200f)
+
+            // Build selected store from saved DataStore values
+            val savedStore = testStore.copy(
+                name = savedSettings.first,
+                radius = savedSettings.second
+            )
+
             BuzzCartApp(
                 repository = repository,
-                storeLocation = testStore,
+                storeLocation = savedStore,
                 // Re-create and register geofence with updated radius
                 onRadiusChanged = { newRadius ->
+                    // Persist selected radius
+                    lifecycleScope.launch {
+                        settingsDataStore.saveSettings(
+                            storeName = savedStore.name,
+                            radius = newRadius
+                        )
+                    }
+
                     val updatedStore = testStore.copy(radius = newRadius)
 
                     val geofence = geofenceManager.createGeofence(
@@ -136,6 +164,13 @@ class MainActivity : ComponentActivity() {
                 },
                 // Re-create and register geofence for newly selected store
                 onStoreChanged = { selectedStore ->
+                    // Persist selected store and its radius
+                    lifecycleScope.launch {
+                        settingsDataStore.saveSettings(
+                            storeName = selectedStore.name,
+                            radius = selectedStore.radius
+                        )
+                    }
                     val geofence = geofenceManager.createGeofence(
                         id = selectedStore.name,
                         lat = selectedStore.lat,
@@ -175,11 +210,11 @@ fun BuzzCartApp(
     var text by remember { mutableStateOf("") }
     val cartItems by viewModel.cartItems.collectAsState(initial = emptyList())
     // UI state for currently selected radius option
-    var selectedRadius by remember {
+    var selectedRadius by remember(storeLocation.radius) {
         mutableStateOf(storeLocation.radius)
     }
     // UI state for currently selected store
-    var selectedStore by remember {
+    var selectedStore by remember(storeLocation.name) {
         mutableStateOf(storeLocation)
     }
 

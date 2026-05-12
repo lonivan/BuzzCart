@@ -56,7 +56,10 @@ dependencies {
     implementation(libs.androidx.compose.ui.tooling.preview)
     implementation(libs.androidx.compose.material3)
     implementation("androidx.lifecycle:lifecycle-viewmodel-compose:2.10.0")
+    // DataStore for saving simple key-value data (store + radius)
     implementation("com.google.android.gms:play-services-location:21.3.0")
+    implementation("androidx.datastore:datastore-preferences:1.1.1")
+
 
     implementation(libs.androidx.room.runtime)
     implementation(libs.androidx.room.ktx)
