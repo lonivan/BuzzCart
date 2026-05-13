@@ -32,6 +32,8 @@ import com.applonic.buzzcart.model.StoreLabel
 import kotlinx.coroutines.launch
 import androidx.compose.ui.text.style.TextDecoration
 import com.applonic.buzzcart.model.CartItem
+import androidx.compose.material3.SnackbarHostState
+import androidx.compose.runtime.remember
 
 class MainActivity : ComponentActivity() {
     private lateinit var geofencingClient: GeofencingClient
@@ -157,6 +159,7 @@ class MainActivity : ComponentActivity() {
                         radius = updatedStore.radius
                     )
 
+
                     geofenceRequest = geofenceManager.createRequest(geofence)
 
                     @SuppressLint("MissingPermission")
@@ -224,6 +227,11 @@ fun BuzzCartApp(
     var itemToDelete by remember {
         mutableStateOf<CartItem?>(null)
     }
+    // Shows short feedback messages after user actions
+    val snackbarHostState = remember {
+        SnackbarHostState()
+    }
+    val coroutineScope = rememberCoroutineScope()
 
 
 
@@ -241,236 +249,266 @@ fun BuzzCartApp(
         mutableStateOf(false)
     }
 
+    Scaffold(
+        snackbarHost = {
+            SnackbarHost(hostState = snackbarHostState)
+        }
+    ) { paddingValues ->
 
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .padding(16.dp)
-            .systemBarsPadding()
-    ) {
         Column(
-            modifier = Modifier.padding(bottom = 16.dp)
+            modifier = Modifier
+                .fillMaxSize()
+                .systemBarsPadding()
+                .padding(paddingValues)
+                .padding(horizontal = 20.dp, vertical = 16.dp)
         ) {
+            Column(
+                modifier = Modifier.padding(bottom = 16.dp)
+            ) {
 
-            Text(
-                text = "BuzzCart",
-                style = MaterialTheme.typography.headlineLarge
+                Text(
+                    text = "BuzzCart",
+                    style = MaterialTheme.typography.headlineLarge
+                )
+
+                Text(
+                    text = "Never forget what to buy nearby.",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+
+            // Temporary store chips (TODO later these become real labels)
+            val storeLabels = listOf(
+                StoreLabel("REWE", 53.5546, 9.9076, 100f),
+                StoreLabel("ALDI", 53.5552, 9.9287, 100f),
+                StoreLabel("EDEKA", 53.552904, 9.931791, 100f),
+                StoreLabel("LIDL", 53.551890, 9.935514, 100f),
+                StoreLabel("OBI", 37.425, -122.081, 100f)
             )
 
-            Text(
-                text = "Never forget what to buy nearby.",
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
-        }
+            Spacer(modifier = Modifier.height(12.dp))
+            LazyRow(
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                items(storeLabels) { label ->
 
-        // Temporary store chips (TODO later these become real labels)
-        val storeLabels = listOf(
-            StoreLabel("REWE", 53.5546, 9.9076, 100f),
-            StoreLabel("ALDI", 53.5552, 9.9287, 100f),
-            StoreLabel("EDEKA", 53.552904, 9.931791, 100f),
-            StoreLabel("LIDL", 53.551890, 9.935514, 100f),
-            StoreLabel("OBI", 37.425, -122.081, 100f)
-        )
-
-        Spacer(modifier = Modifier.height(12.dp))
-        LazyRow(
-            horizontalArrangement = Arrangement.spacedBy(8.dp)
-        ) {
-            items(storeLabels) { label ->
-
-                FilterChip(
-                    modifier = Modifier.height(40.dp),
-                    selected = selectedLabel.name == label.name,
-                    onClick = {
-                        selectedLabel = selectedLabel.copy(name = label.name)
-                    },
-                    label = {
-                        Text(label.name)
-                    },
-                    colors = FilterChipDefaults.filterChipColors(
-                        selectedContainerColor = MaterialTheme.colorScheme.primary,
-                        selectedLabelColor = MaterialTheme.colorScheme.onPrimary
+                    FilterChip(
+                        modifier = Modifier.height(40.dp),
+                        selected = selectedLabel.name == label.name,
+                        onClick = {
+                            selectedLabel = selectedLabel.copy(name = label.name)
+                        },
+                        label = {
+                            Text(label.name)
+                        },
+                        colors = FilterChipDefaults.filterChipColors(
+                            selectedContainerColor = MaterialTheme.colorScheme.primary,
+                            selectedLabelColor = MaterialTheme.colorScheme.onPrimary
+                        )
                     )
-                )
-            }
-        }
-        Spacer(modifier = Modifier.height(16.dp))
-
-        // Dropdown to select store from predefined list
-        DropdownMenu(
-            expanded = storeDropdownExpanded,
-            onDismissRequest = { storeDropdownExpanded = false }
-        ) {
-            stores.forEach { store ->
-                DropdownMenuItem(
-                    text = { Text(store.name) },
-                    onClick = {
-                        // Update selected store and notify MainActivity to re-register geofence
-                        selectedLabel = store
-                        selectedRadius = store.radius
-                        onStoreChanged(store)
-                        storeDropdownExpanded = false
-                    }
-                )
-            }
-        }
-
-        Text(
-            text = "Radius: ${selectedRadius.toInt()}m",
-            style = MaterialTheme.typography.bodySmall
-        )
-
-        // Temporary radius options; TODO later these will update and re-register the geofence
-        Spacer(modifier = Modifier.height(8.dp))
-
-        Row(
-            horizontalArrangement = Arrangement.spacedBy(8.dp)
-        ) {
-            listOf(50f, 100f, 200f, 500f).forEach { radius ->
-                Button(
-                    onClick = {
-                        // Update selected radius when user taps an option
-                        selectedRadius = radius
-                        onRadiusChanged(radius)
-                    }
-                ) {
-                    Text("${radius.toInt()}m")
                 }
             }
-        }
+            Spacer(modifier = Modifier.height(16.dp))
 
-        Spacer(modifier = Modifier.height(16.dp))
+            // Dropdown to select store from predefined list
+            DropdownMenu(
+                expanded = storeDropdownExpanded,
+                onDismissRequest = { storeDropdownExpanded = false }
+            ) {
+                stores.forEach { store ->
+                    DropdownMenuItem(
+                        text = { Text(store.name) },
+                        onClick = {
+                            // Update selected store and notify MainActivity to re-register geofence
+                            selectedLabel = store
+                            selectedRadius = store.radius
+                            onStoreChanged(store)
+                            storeDropdownExpanded = false
+                        }
+                    )
+                }
+            }
 
-        Row(
-            modifier = Modifier.fillMaxWidth()
-        ) {
-            OutlinedTextField(
-                value = text,
-                onValueChange = { text = it },
-                modifier = Modifier.weight(1f),
-                placeholder = { Text("Add item") },
-                singleLine = true
+            Text(
+                text = "Radius: ${selectedRadius.toInt()}m",
+                style = MaterialTheme.typography.bodySmall
             )
 
-            Spacer(modifier = Modifier.width(8.dp))
+            // Temporary radius options; TODO later these will update and re-register the geofence
+            Spacer(modifier = Modifier.height(8.dp))
 
-            Button(
-                onClick = {
-                    if (text.isNotBlank()) {
-                        viewModel.addItem(text)
-                        text = ""
-                    }
-                },
-                shape = MaterialTheme.shapes.medium
+            Row(
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
-                Text("Add")
+                listOf(50f, 100f, 200f, 500f).forEach { radius ->
+                    Button(
+                        onClick = {
+                            // Update selected radius when user taps an option
+                            selectedRadius = radius
+                            onRadiusChanged(radius)
+                        }
+                    ) {
+                        Text("${radius.toInt()}m")
+                    }
+                }
             }
-        }
 
-        Spacer(modifier = Modifier.height(16.dp))
+            Spacer(modifier = Modifier.height(16.dp))
 
-        LazyColumn(
-            verticalArrangement = Arrangement.spacedBy(12.dp)
-        ) {
+            Row(
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                OutlinedTextField(
+                    value = text,
+                    onValueChange = { text = it },
+                    modifier = Modifier.weight(1f),
+                    placeholder = { Text("Add item") },
+                    singleLine = true
+                )
+
+                Spacer(modifier = Modifier.width(8.dp))
+
+                Button(
+                    onClick = {
+                        if (text.isNotBlank()) {
+                            viewModel.addItem(text)
+                            coroutineScope.launch  {
+                                snackbarHostState.showSnackbar("Item added")
+                            }
+                            text = ""
+                        }
+                    },
+                    shape = MaterialTheme.shapes.medium
+                ) {
+                    Text("Add")
+                }
+            }
+
+            Spacer(modifier = Modifier.height(16.dp))
             // Show unchecked items first, checked items at the bottom
             val sortedItems = cartItems.sortedBy { it.isChecked }
-            items(cartItems) { item ->
+            if (sortedItems.isEmpty()) {
                 Card(
                     modifier = Modifier.fillMaxWidth(),
-                    shape = MaterialTheme.shapes.medium,
                     colors = CardDefaults.cardColors(
                         containerColor = MaterialTheme.colorScheme.surfaceVariant
                     )
                 ) {
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(12.dp),
-                        horizontalArrangement = Arrangement.SpaceBetween
-                    ) {
-                        Row(
-                            modifier = Modifier.weight(1f)
-                        ) {
-                            Checkbox(
-                                checked = item.isChecked,
-                                onCheckedChange = {
-                                    viewModel.toggleItem(item)
-                                }
+                    Text(
+                        text = "No items yet. Add something you don’t want to forget.",
+                        modifier = Modifier.padding(16.dp),
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+            } else {
+                LazyColumn(
+                    verticalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    // Show unchecked items first, checked items at the bottom
+                    val sortedItems = cartItems.sortedBy { it.isChecked }
+                    items(cartItems) { item ->
+                        Card(
+                            modifier = Modifier.fillMaxWidth(),
+                            shape = MaterialTheme.shapes.medium,
+                            colors = CardDefaults.cardColors(
+                                containerColor = MaterialTheme.colorScheme.surfaceVariant
                             )
-
-                            Spacer(modifier = Modifier.width(8.dp))
-
-                            Column(
-                                modifier = Modifier.padding(top = 8.dp)
-                            ) {
-                                Text(
-                                    text = item.name,
-                                    style = MaterialTheme.typography.bodyLarge,
-                                    textDecoration = if (item.isChecked) {
-                                        TextDecoration.LineThrough
-                                    } else {
-                                        TextDecoration.None
-                                    },
-                                    color = if (item.isChecked) {
-                                        MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f)
-                                    } else {
-                                        MaterialTheme.colorScheme.onSurface
-                                    }
-                                )
-
-                                Text(
-                                    text = "REWE • ALDI",
-                                    style = MaterialTheme.typography.bodySmall,
-                                    color = MaterialTheme.colorScheme.primary
-                                )
-                            }
-                        }
-
-                        TextButton(
-                            onClick = {
-                                // Ask for confirmation before permanent deletion
-                                itemToDelete = item
-                            }
                         ) {
-                            Text("Delete")
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(12.dp),
+                                horizontalArrangement = Arrangement.SpaceBetween
+                            ) {
+                                Row(
+                                    modifier = Modifier.weight(1f)
+                                ) {
+                                    Checkbox(
+                                        checked = item.isChecked,
+                                        onCheckedChange = {
+                                            viewModel.toggleItem(item)
+                                        }
+                                    )
+
+                                    Spacer(modifier = Modifier.width(8.dp))
+
+                                    Column(
+                                        modifier = Modifier.padding(top = 8.dp)
+                                    ) {
+                                        Text(
+                                            text = item.name,
+                                            style = MaterialTheme.typography.bodyLarge,
+                                            textDecoration = if (item.isChecked) {
+                                                TextDecoration.LineThrough
+                                            } else {
+                                                TextDecoration.None
+                                            },
+                                            color = if (item.isChecked) {
+                                                MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f)
+                                            } else {
+                                                MaterialTheme.colorScheme.onSurface
+                                            }
+                                        )
+
+                                        Text(
+                                            text = "REWE • ALDI",
+                                            style = MaterialTheme.typography.bodySmall,
+                                            color = MaterialTheme.colorScheme.primary
+                                        )
+                                    }
+                                }
+
+                                TextButton(
+                                    onClick = {
+                                        // Ask for confirmation before permanent deletion
+                                        itemToDelete = item
+                                    }
+                                ) {
+                                    Text("Delete")
+                                }
+                            }
                         }
                     }
                 }
             }
-        }
 
-        itemToDelete?.let { item ->
-            AlertDialog(
-                onDismissRequest = {
-                    itemToDelete = null
-                },
-                title = {
-                    Text("Delete item?")
-                },
-                text = {
-                    Text("Are you sure you want to delete \"${item.name}\"?")
-                },
-                confirmButton = {
-                    TextButton(
-                        onClick = {
-                            viewModel.deleteItem(item)
-                            itemToDelete = null
+            itemToDelete?.let { item ->
+                AlertDialog(
+                    onDismissRequest = {
+                        itemToDelete = null
+                    },
+                    title = {
+                        Text("Delete item?")
+                    },
+                    text = {
+                        Text("Are you sure you want to delete \"${item.name}\"?")
+                    },
+                    confirmButton = {
+                        TextButton(
+                            onClick = {
+                                viewModel.deleteItem(item)
+                                coroutineScope.launch {
+                                    snackbarHostState.showSnackbar("Item deleted")
+                                }
+                                itemToDelete = null
+                            }
+                        ) {
+                            Text("Delete")
                         }
-                    ) {
-                        Text("Delete")
-                    }
-                },
-                dismissButton = {
-                    TextButton(
-                        onClick = {
-                            itemToDelete = null
+                    },
+                    dismissButton = {
+                        TextButton(
+                            onClick = {
+                                itemToDelete = null
+                            }
+                        ) {
+                            Text("Cancel")
                         }
-                    ) {
-                        Text("Cancel")
                     }
-                }
-            )
+                )
+            }
         }
     }
 }
