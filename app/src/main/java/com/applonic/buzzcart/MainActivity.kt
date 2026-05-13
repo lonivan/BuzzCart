@@ -386,8 +386,13 @@ fun BuzzCartApp(
             }
 
             Spacer(modifier = Modifier.height(16.dp))
-            // Show unchecked items first, checked items at the bottom
-            val sortedItems = cartItems.sortedBy { it.isChecked }
+
+            // Show unchecked first, newest items first inside each group
+            val sortedItems = cartItems
+                .sortedWith(
+                    compareBy<CartItem> { it.isChecked }
+                        .thenByDescending { it.id }
+                )
             if (sortedItems.isEmpty()) {
                 Card(
                     modifier = Modifier.fillMaxWidth(),
@@ -406,9 +411,13 @@ fun BuzzCartApp(
                 LazyColumn(
                     verticalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
-                    // Show unchecked items first, checked items at the bottom
-                    val sortedItems = cartItems.sortedBy { it.isChecked }
-                    items(cartItems) { item ->
+                    // Show unchecked first, newest items first inside each group
+                    val sortedItems = cartItems
+                        .sortedWith(
+                            compareBy<CartItem> { it.isChecked }
+                                .thenByDescending { it.id }
+                        )
+                    items(sortedItems) { item ->
                         Card(
                             modifier = Modifier.fillMaxWidth(),
                             shape = MaterialTheme.shapes.medium,
