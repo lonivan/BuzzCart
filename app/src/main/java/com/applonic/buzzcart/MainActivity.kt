@@ -7,6 +7,7 @@ import androidx.activity.compose.setContent
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -23,12 +24,13 @@ import com.google.android.gms.location.GeofencingRequest
 import com.google.android.gms.location.LocationServices
 import com.google.android.gms.location.Priority
 import com.applonic.buzzcart.location.StoreLocation
-import androidx.datastore.preferences.core.*
 import com.applonic.buzzcart.data.SettingsDataStore
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.lifecycle.lifecycleScope
+import com.applonic.buzzcart.model.StoreLabel
 import kotlinx.coroutines.launch
+import androidx.compose.ui.text.style.TextDecoration
 
 class MainActivity : ComponentActivity() {
     private lateinit var geofencingClient: GeofencingClient
@@ -214,7 +216,7 @@ fun BuzzCartApp(
         mutableStateOf(storeLocation.radius)
     }
     // UI state for currently selected store
-    var selectedStore by remember(storeLocation.name) {
+    var selectedLabel by remember(storeLocation.name) {
         mutableStateOf(storeLocation)
     }
 
@@ -241,22 +243,46 @@ fun BuzzCartApp(
             .padding(16.dp)
             .systemBarsPadding()
     ) {
-        Text(
-            text = "BuzzCart",
-            style = MaterialTheme.typography.headlineMedium
-        )
-
-        // Shows currently selected store from UI state
-        Text(
-            text = "Current store: ${selectedStore.name}",
-            style = MaterialTheme.typography.bodyMedium
-        )
-
-
-        TextButton(
-            onClick = { storeDropdownExpanded = true }
+        Column(
+            modifier = Modifier.padding(bottom = 16.dp)
         ) {
-            Text("Change store")
+
+            Text(
+                text = "BuzzCart",
+                style = MaterialTheme.typography.headlineLarge
+            )
+
+            Text(
+                text = "Never forget what to buy nearby.",
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        }
+
+        // Temporary store chips (TODO later these become real labels)
+        val storeLabels = listOf(
+            StoreLabel("REWE", 53.5546, 9.9076, 100f),
+            StoreLabel("ALDI", 53.5552, 9.9287, 100f),
+            StoreLabel("EDEKA", 53.552904, 9.931791, 100f),
+            StoreLabel("LIDL", 53.551890, 9.935514, 100f),
+            StoreLabel("OBI", 37.425, -122.081, 100f)
+        )
+
+        LazyRow(
+            horizontalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            items(storeLabels) { label ->
+
+                FilterChip(
+                    selected = selectedLabel.name == label.name,
+                    onClick = {
+                        selectedLabel = selectedLabel.copy(name = label.name)
+                    },
+                    label = {
+                        Text(label.name)
+                    }
+                )
+            }
         }
 
         // Dropdown to select store from predefined list
@@ -269,7 +295,7 @@ fun BuzzCartApp(
                     text = { Text(store.name) },
                     onClick = {
                         // Update selected store and notify MainActivity to re-register geofence
-                        selectedStore = store
+                        selectedLabel = store
                         selectedRadius = store.radius
                         onStoreChanged(store)
                         storeDropdownExpanded = false
@@ -307,11 +333,12 @@ fun BuzzCartApp(
         Row(
             modifier = Modifier.fillMaxWidth()
         ) {
-            TextField(
+            OutlinedTextField(
                 value = text,
                 onValueChange = { text = it },
                 modifier = Modifier.weight(1f),
-                placeholder = { Text("Add item") }
+                placeholder = { Text("Add item") },
+                singleLine = true
             )
 
             Spacer(modifier = Modifier.width(8.dp))
@@ -319,11 +346,11 @@ fun BuzzCartApp(
             Button(
                 onClick = {
                     if (text.isNotBlank()) {
-
-                        viewModel.addItem(text.trim())
+                        viewModel.addItem(text)
                         text = ""
                     }
-                }
+                },
+                shape = MaterialTheme.shapes.medium
             ) {
                 Text("Add")
             }
@@ -332,11 +359,17 @@ fun BuzzCartApp(
         Spacer(modifier = Modifier.height(16.dp))
 
         LazyColumn(
-            verticalArrangement = Arrangement.spacedBy(8.dp)
+            verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
+            // Show unchecked items first, checked items at the bottom
+            val sortedItems = cartItems.sortedBy { it.isChecked }
             items(cartItems) { item ->
                 Card(
-                    modifier = Modifier.fillMaxWidth()
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = MaterialTheme.shapes.medium,
+                    colors = CardDefaults.cardColors(
+                        containerColor = MaterialTheme.colorScheme.surfaceVariant
+                    )
                 ) {
                     Row(
                         modifier = Modifier
@@ -356,10 +389,30 @@ fun BuzzCartApp(
 
                             Spacer(modifier = Modifier.width(8.dp))
 
-                            Text(
-                                text = item.name,
-                                modifier = Modifier.padding(top = 12.dp)
-                            )
+                            Column(
+                                modifier = Modifier.padding(top = 8.dp)
+                            ) {
+                                Text(
+                                    text = item.name,
+                                    style = MaterialTheme.typography.bodyLarge,
+                                    textDecoration = if (item.isChecked) {
+                                        TextDecoration.LineThrough
+                                    } else {
+                                        TextDecoration.None
+                                    },
+                                    color = if (item.isChecked) {
+                                        MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f)
+                                    } else {
+                                        MaterialTheme.colorScheme.onSurface
+                                    }
+                                )
+
+                                Text(
+                                    text = "REWE • ALDI",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.primary
+                                )
+                            }
                         }
 
                         TextButton(
