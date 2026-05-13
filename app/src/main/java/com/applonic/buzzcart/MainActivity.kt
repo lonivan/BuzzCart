@@ -31,6 +31,7 @@ import androidx.lifecycle.lifecycleScope
 import com.applonic.buzzcart.model.StoreLabel
 import kotlinx.coroutines.launch
 import androidx.compose.ui.text.style.TextDecoration
+import com.applonic.buzzcart.model.CartItem
 
 class MainActivity : ComponentActivity() {
     private lateinit var geofencingClient: GeofencingClient
@@ -219,6 +220,10 @@ fun BuzzCartApp(
     var selectedLabel by remember(storeLocation.name) {
         mutableStateOf(storeLocation)
     }
+    // Holds item pending deletion confirmation
+    var itemToDelete by remember {
+        mutableStateOf<CartItem?>(null)
+    }
 
 
 
@@ -268,22 +273,29 @@ fun BuzzCartApp(
             StoreLabel("OBI", 37.425, -122.081, 100f)
         )
 
+        Spacer(modifier = Modifier.height(12.dp))
         LazyRow(
             horizontalArrangement = Arrangement.spacedBy(8.dp)
         ) {
             items(storeLabels) { label ->
 
                 FilterChip(
+                    modifier = Modifier.height(40.dp),
                     selected = selectedLabel.name == label.name,
                     onClick = {
                         selectedLabel = selectedLabel.copy(name = label.name)
                     },
                     label = {
                         Text(label.name)
-                    }
+                    },
+                    colors = FilterChipDefaults.filterChipColors(
+                        selectedContainerColor = MaterialTheme.colorScheme.primary,
+                        selectedLabelColor = MaterialTheme.colorScheme.onPrimary
+                    )
                 )
             }
         }
+        Spacer(modifier = Modifier.height(16.dp))
 
         // Dropdown to select store from predefined list
         DropdownMenu(
@@ -417,7 +429,8 @@ fun BuzzCartApp(
 
                         TextButton(
                             onClick = {
-                                viewModel.deleteItem(item)
+                                // Ask for confirmation before permanent deletion
+                                itemToDelete = item
                             }
                         ) {
                             Text("Delete")
@@ -425,6 +438,39 @@ fun BuzzCartApp(
                     }
                 }
             }
+        }
+
+        itemToDelete?.let { item ->
+            AlertDialog(
+                onDismissRequest = {
+                    itemToDelete = null
+                },
+                title = {
+                    Text("Delete item?")
+                },
+                text = {
+                    Text("Are you sure you want to delete \"${item.name}\"?")
+                },
+                confirmButton = {
+                    TextButton(
+                        onClick = {
+                            viewModel.deleteItem(item)
+                            itemToDelete = null
+                        }
+                    ) {
+                        Text("Delete")
+                    }
+                },
+                dismissButton = {
+                    TextButton(
+                        onClick = {
+                            itemToDelete = null
+                        }
+                    ) {
+                        Text("Cancel")
+                    }
+                }
+            )
         }
     }
 }
