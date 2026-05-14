@@ -4,7 +4,7 @@ import androidx.room.Database
 import androidx.room.RoomDatabase
 import com.applonic.buzzcart.model.CartItem
 
-@Database(entities = [CartItem::class], version = 1)
+@Database(entities = [CartItem::class], version = 2)
 abstract class BuzzCartDatabase : RoomDatabase() {
     abstract fun cartItemDao(): CartItemDao
 }

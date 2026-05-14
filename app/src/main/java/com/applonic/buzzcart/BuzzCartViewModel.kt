@@ -34,4 +34,29 @@ class BuzzCartViewModel(
             repository.update(item.copy(isChecked = !item.isChecked))
         }
     }
+
+    fun addLabelToItem(item: CartItem, label: String) {
+
+        val existingLabels = item.labels
+            .split(",")
+            .filter { it.isNotBlank() }
+
+        // Avoid duplicate labels
+        if (existingLabels.contains(label)) return
+
+        val updatedLabels = (existingLabels + label)
+            .joinToString(",")
+
+        val updatedItem = item.copy(labels = updatedLabels)
+
+        viewModelScope.launch {
+            repository.update(updatedItem)
+        }
+    }
+
+    fun updateItem(item: CartItem) {
+        viewModelScope.launch(Dispatchers.IO) {
+            repository.update(item)
+        }
+    }
 }

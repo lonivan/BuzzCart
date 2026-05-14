@@ -5,6 +5,7 @@ import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
@@ -34,6 +35,8 @@ import androidx.compose.ui.text.style.TextDecoration
 import com.applonic.buzzcart.model.CartItem
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.runtime.remember
+import androidx.compose.foundation.combinedClickable
+import androidx.compose.foundation.ExperimentalFoundationApi
 
 class MainActivity : ComponentActivity() {
     private lateinit var geofencingClient: GeofencingClient
@@ -83,7 +86,9 @@ class MainActivity : ComponentActivity() {
             applicationContext,
             BuzzCartDatabase::class.java,
             "buzzcart_db"
-        ).build()
+        )
+            .fallbackToDestructiveMigration(true)
+            .build()
 
         val dao = db.cartItemDao()
         val repository = CartItemRepository(dao)
@@ -200,6 +205,7 @@ class MainActivity : ComponentActivity() {
 
 
 @Composable
+@OptIn(ExperimentalFoundationApi::class)
 fun BuzzCartApp(
     repository: CartItemRepository,
     storeLocation: StoreLocation,
@@ -218,6 +224,10 @@ fun BuzzCartApp(
     // UI state for currently selected radius option
     var selectedRadius by remember(storeLocation.radius) {
         mutableStateOf(storeLocation.radius)
+    }
+
+    var selectedItemForLabeling by remember {
+        mutableStateOf<CartItem?>(null)
     }
 
     // Temporary store chips (TODO later these become real labels)
@@ -306,12 +316,12 @@ fun BuzzCartApp(
             ) {
 
                 Text(
-                    text = "BuzzCart",
+                    text = "${selectedLabel.name} list",
                     style = MaterialTheme.typography.headlineLarge
                 )
 
                 Text(
-                    text = "Never forget what to buy nearby.",
+                    text = "Items connected to nearby stores and labels.",
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
@@ -327,9 +337,37 @@ fun BuzzCartApp(
 
                     FilterChip(
                         modifier = Modifier.height(40.dp),
-                        selected = selectedLabel.name == shoppingLabel.name,
+                        selected =
+                            selectedItemForLabeling?.labels
+                                ?.split(",")
+                                ?.contains(shoppingLabel.name)
+                                    == true,
                         onClick = {
-                            selectedLabel = shoppingLabel
+                            selectedItemForLabeling?.let { selectedItem ->
+
+                                // Use latest item from database state, not stale selected item
+                                val currentItem = cartItems.firstOrNull { it.id == selectedItem.id } ?: selectedItem
+
+                                val labels = currentItem.labels
+                                    .split(",")
+                                    .filter { it.isNotBlank() }
+
+                                val updatedLabels =
+                                    if (labels.contains(shoppingLabel.name)) {
+                                        labels.filter { it != shoppingLabel.name }
+                                    } else {
+                                        labels + shoppingLabel.name
+                                    }
+
+                                val updatedItem = currentItem.copy(
+                                    labels = updatedLabels.joinToString(",")
+                                )
+
+                                selectedItemForLabeling = updatedItem
+                                viewModel.updateItem(updatedItem)
+                            } ?: run {
+                                selectedLabel = shoppingLabel
+                            }
                         },
                         label = {
                             Text(shoppingLabel.name)
@@ -450,10 +488,26 @@ fun BuzzCartApp(
                         )
                     items(sortedItems) { item ->
                         Card(
-                            modifier = Modifier.fillMaxWidth(),
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .combinedClickable(
+                                    onClick = {
+                                        // Tap selected item again to exit label assignment mode
+                                        if (selectedItemForLabeling?.id == item.id) {
+                                            selectedItemForLabeling = null
+                                        }
+                                    },
+                                    onLongClick = {
+                                        selectedItemForLabeling = item
+                                    }
+                                ),
                             shape = MaterialTheme.shapes.medium,
                             colors = CardDefaults.cardColors(
-                                containerColor = MaterialTheme.colorScheme.surfaceVariant
+                                containerColor = if (selectedItemForLabeling?.id == item.id) {
+                                    MaterialTheme.colorScheme.primaryContainer
+                                } else {
+                                    MaterialTheme.colorScheme.surfaceVariant
+                                }
                             )
                         ) {
                             Row(
@@ -492,11 +546,13 @@ fun BuzzCartApp(
                                             }
                                         )
 
-                                        Text(
-                                            text = "REWE • ALDI",
-                                            style = MaterialTheme.typography.bodySmall,
-                                            color = MaterialTheme.colorScheme.primary
-                                        )
+                                        if (item.labels.isNotBlank()) {
+                                            Text(
+                                                text = item.labels.replace(",", " • "),
+                                                style = MaterialTheme.typography.bodySmall,
+                                                color = MaterialTheme.colorScheme.primary
+                                            )
+                                        }
                                     }
                                 }
 
