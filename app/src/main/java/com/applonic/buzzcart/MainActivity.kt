@@ -35,8 +35,9 @@ import androidx.compose.ui.text.style.TextDecoration
 import com.applonic.buzzcart.model.CartItem
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.runtime.remember
-import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.material3.SnackbarDuration
+import kotlinx.coroutines.Job
 
 class MainActivity : ComponentActivity() {
     private lateinit var geofencingClient: GeofencingClient
@@ -230,6 +231,14 @@ fun BuzzCartApp(
         mutableStateOf<CartItem?>(null)
     }
 
+    var recentlyDeletedItem by remember {
+        mutableStateOf<CartItem?>(null)
+    }
+
+    var labelAssignmentJob by remember {
+        mutableStateOf<Job?>(null)
+    }
+
     // Temporary store chips (TODO later these become real labels)
     val shoppingLabels = listOf(
 
@@ -271,10 +280,6 @@ fun BuzzCartApp(
     // UI state for currently selected store
     var selectedLabel by remember {
         mutableStateOf(shoppingLabels.first())
-    }
-    // Holds item pending deletion confirmation
-    var itemToDelete by remember {
-        mutableStateOf<CartItem?>(null)
     }
     // Shows short feedback messages after user actions
     val snackbarHostState = remember {
@@ -368,6 +373,12 @@ fun BuzzCartApp(
 
                                 selectedItemForLabeling = updatedItem
                                 viewModel.updateItem(updatedItem)
+                                // Keep assignment mode active while user is choosing labels
+                                labelAssignmentJob?.cancel()
+                                labelAssignmentJob = coroutineScope.launch {
+                                    kotlinx.coroutines.delay(8_000)
+                                    selectedItemForLabeling = null
+                                }
                             } ?: run {
                                 selectedLabel = shoppingLabel
                             }
@@ -456,7 +467,9 @@ fun BuzzCartApp(
                     value = text,
                     onValueChange = { text = it },
                     modifier = Modifier.weight(1f),
-                    placeholder = { Text("Add item") },
+                    placeholder = {
+                        Text("Add item to ${selectedLabel.name}")
+                    },
                     singleLine = true
                 )
 
@@ -465,12 +478,13 @@ fun BuzzCartApp(
                 Button(
                     onClick = {
                         if (text.isNotBlank()) {
+                            val itemName = text.trim()
                             viewModel.addItem(
                                 name = text,
                                 label = selectedLabel.name
                             )
                             coroutineScope.launch  {
-                                snackbarHostState.showSnackbar("Item added")
+                                snackbarHostState.showSnackbar("$itemName added")
                             }
                             text = ""
                         }
@@ -526,14 +540,20 @@ fun BuzzCartApp(
                                 .fillMaxWidth()
                                 .combinedClickable(
                                     onClick = {
-                                        // Tap selected item again to exit label assignment mode
                                         if (selectedItemForLabeling?.id == item.id) {
+
+                                            // Tap again to exit assignment mode
                                             selectedItemForLabeling = null
+                                        } else {
+                                            // Select item for label assignment
+                                            selectedItemForLabeling = item
+                                            labelAssignmentJob?.cancel()
+                                            labelAssignmentJob = coroutineScope.launch {
+                                                kotlinx.coroutines.delay(8_000)
+                                                selectedItemForLabeling = null
+                                            }
                                         }
                                     },
-                                    onLongClick = {
-                                        selectedItemForLabeling = item
-                                    }
                                 ),
                             shape = MaterialTheme.shapes.medium,
                             colors = CardDefaults.cardColors(
@@ -597,52 +617,35 @@ fun BuzzCartApp(
 
                                 TextButton(
                                     onClick = {
-                                        // Ask for confirmation before permanent deletion
-                                        itemToDelete = item
+                                        recentlyDeletedItem = item
+                                        viewModel.deleteItem(item)
+
+                                        coroutineScope.launch {
+                                            val result = snackbarHostState.showSnackbar(
+                                                message = "${item.name} removed",
+                                                actionLabel = "UNDO",
+                                                duration = SnackbarDuration.Short
+                                            )
+
+                                            if (result == SnackbarResult.ActionPerformed) {
+                                                recentlyDeletedItem?.let { deletedItem ->
+                                                    viewModel.addItem(
+                                                        name = deletedItem.name,
+                                                        label = deletedItem.labels
+                                                    )
+                                                }
+                                            }
+
+                                            recentlyDeletedItem = null
+                                        }
                                     }
                                 ) {
-                                    Text("Delete")
+                                    Text("Remove")
                                 }
                             }
                         }
                     }
                 }
-            }
-
-            itemToDelete?.let { item ->
-                AlertDialog(
-                    onDismissRequest = {
-                        itemToDelete = null
-                    },
-                    title = {
-                        Text("Delete item?")
-                    },
-                    text = {
-                        Text("Are you sure you want to delete \"${item.name}\"?")
-                    },
-                    confirmButton = {
-                        TextButton(
-                            onClick = {
-                                viewModel.deleteItem(item)
-                                coroutineScope.launch {
-                                    snackbarHostState.showSnackbar("Item deleted")
-                                }
-                                itemToDelete = null
-                            }
-                        ) {
-                            Text("Delete")
-                        }
-                    },
-                    dismissButton = {
-                        TextButton(
-                            onClick = {
-                                itemToDelete = null
-                            }
-                        ) {
-                            Text("Cancel")
-                        }
-                    }
-                )
             }
         }
     }

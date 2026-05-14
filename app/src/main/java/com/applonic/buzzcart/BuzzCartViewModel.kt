@@ -21,7 +21,12 @@ class BuzzCartViewModel(
             repository.insert(
                 CartItem(
                     name = name,
-                    labels = label
+                    labels =
+                        if (label == "MAIN") {
+                            "MAIN"
+                        } else {
+                            "MAIN,$label"
+                        }
                 )
             )
         }
