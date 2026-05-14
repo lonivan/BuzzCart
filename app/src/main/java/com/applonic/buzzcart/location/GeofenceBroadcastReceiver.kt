@@ -29,7 +29,22 @@ class GeofenceBroadcastReceiver : BroadcastReceiver() {
                     "buzzcart_db"
                 ).build()
 
-                db.cartItemDao().getUncheckedItemsOnce()
+                val triggeringGeofences = geofencingEvent.triggeringGeofences
+                val labelNames = triggeringGeofences
+                    ?.mapNotNull { geofence ->
+                        geofence.requestId.substringBefore("_")
+                    }
+                    ?: emptyList()
+
+                db.cartItemDao()
+                    .getUncheckedItemsOnce()
+                    .filter { item ->
+                        labelNames.any { labelName ->
+                            item.labels
+                                .split(",")
+                                .contains(labelName)
+                        }
+                    }
             }
 
             val itemText = if (items.isEmpty()) {
