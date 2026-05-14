@@ -23,12 +23,12 @@ import com.google.android.gms.location.GeofencingClient
 import com.google.android.gms.location.GeofencingRequest
 import com.google.android.gms.location.LocationServices
 import com.google.android.gms.location.Priority
-import com.applonic.buzzcart.location.StoreLocation
 import com.applonic.buzzcart.data.SettingsDataStore
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.lifecycle.lifecycleScope
-import com.applonic.buzzcart.model.StoreLabel
+import com.applonic.buzzcart.model.ShoppingLabel
+import com.applonic.buzzcart.model.StoreLocation
 import kotlinx.coroutines.launch
 import androidx.compose.ui.text.style.TextDecoration
 import com.applonic.buzzcart.model.CartItem
@@ -219,9 +219,48 @@ fun BuzzCartApp(
     var selectedRadius by remember(storeLocation.radius) {
         mutableStateOf(storeLocation.radius)
     }
+
+    // Temporary store chips (TODO later these become real labels)
+    val shoppingLabels = listOf(
+
+        ShoppingLabel(
+            name = "REWE",
+            stores = listOf(
+                StoreLocation("REWE", 53.5546, 9.9076, 100f)
+            )
+        ),
+
+        ShoppingLabel(
+            name = "ALDI",
+            stores = listOf(
+                StoreLocation("ALDI", 53.5552, 9.9287, 100f)
+            )
+        ),
+
+        ShoppingLabel(
+            name = "EDEKA",
+            stores = listOf(
+                StoreLocation("EDEKA", 53.552904, 9.931791, 100f)
+            )
+        ),
+
+        ShoppingLabel(
+            name = "LIDL",
+            stores = listOf(
+                StoreLocation("LIDL", 53.551890, 9.935514, 100f)
+            )
+        ),
+
+        ShoppingLabel(
+            name = "OBI",
+            stores = listOf(
+                StoreLocation("OBI", 37.425, -122.081, 100f)
+            )
+        )
+    )
     // UI state for currently selected store
-    var selectedLabel by remember(storeLocation.name) {
-        mutableStateOf(storeLocation)
+    var selectedLabel by remember {
+        mutableStateOf(shoppingLabels.first())
     }
     // Holds item pending deletion confirmation
     var itemToDelete by remember {
@@ -278,29 +317,22 @@ fun BuzzCartApp(
                 )
             }
 
-            // Temporary store chips (TODO later these become real labels)
-            val storeLabels = listOf(
-                StoreLabel("REWE", 53.5546, 9.9076, 100f),
-                StoreLabel("ALDI", 53.5552, 9.9287, 100f),
-                StoreLabel("EDEKA", 53.552904, 9.931791, 100f),
-                StoreLabel("LIDL", 53.551890, 9.935514, 100f),
-                StoreLabel("OBI", 37.425, -122.081, 100f)
-            )
+
 
             Spacer(modifier = Modifier.height(12.dp))
             LazyRow(
                 horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
-                items(storeLabels) { label ->
+                items(shoppingLabels) { shoppingLabel ->
 
                     FilterChip(
                         modifier = Modifier.height(40.dp),
-                        selected = selectedLabel.name == label.name,
+                        selected = selectedLabel.name == shoppingLabel.name,
                         onClick = {
-                            selectedLabel = selectedLabel.copy(name = label.name)
+                            selectedLabel = shoppingLabel
                         },
                         label = {
-                            Text(label.name)
+                            Text(shoppingLabel.name)
                         },
                         colors = FilterChipDefaults.filterChipColors(
                             selectedContainerColor = MaterialTheme.colorScheme.primary,
@@ -321,7 +353,6 @@ fun BuzzCartApp(
                         text = { Text(store.name) },
                         onClick = {
                             // Update selected store and notify MainActivity to re-register geofence
-                            selectedLabel = store
                             selectedRadius = store.radius
                             onStoreChanged(store)
                             storeDropdownExpanded = false
