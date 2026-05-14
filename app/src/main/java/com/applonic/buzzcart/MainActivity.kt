@@ -1,6 +1,7 @@
 package com.applonic.buzzcart
 import android.annotation.SuppressLint
 import android.app.PendingIntent
+import android.content.Intent
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
@@ -98,6 +99,16 @@ class MainActivity : ComponentActivity() {
         }
     }
 
+    private var openedLabelNameState by mutableStateOf<String?>(null)
+
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+
+        setIntent(intent)
+
+        openedLabelNameState = intent.getStringExtra("opened_label_name")
+    }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
@@ -152,7 +163,7 @@ class MainActivity : ComponentActivity() {
 
         val settingsDataStore = SettingsDataStore(applicationContext)
 
-        val openedLabelName = intent.getStringExtra("opened_label_name")
+        openedLabelNameState = intent.getStringExtra("opened_label_name")
 
         setContent {
             // Observe saved store and radius from DataStore
@@ -180,7 +191,7 @@ class MainActivity : ComponentActivity() {
                 repository = repository,
                 storeLocation = savedStore,
                 savedLabels = savedLabels,
-                openedLabelName = openedLabelName,
+                openedLabelName = openedLabelNameState,
                 // Re-create and register geofence with updated radius
                 onRadiusChanged = { newRadius ->
                     // Persist selected radius
@@ -405,8 +416,16 @@ fun BuzzCartApp(
         )
     ))} */
     // UI state for currently selected store
-    var selectedLabel by remember {
+    var selectedLabel by remember(shoppingLabels) {
         mutableStateOf(shoppingLabels.first())
+    }
+
+    LaunchedEffect(openedLabelName, shoppingLabels) {
+        openedLabelName?.let { labelName ->
+            shoppingLabels.firstOrNull { it.name == labelName }?.let { label ->
+                selectedLabel = label
+            }
+        }
     }
     // Shows short feedback messages after user actions
     val snackbarHostState = remember {
@@ -555,47 +574,6 @@ fun BuzzCartApp(
             }
             Spacer(modifier = Modifier.height(16.dp))
 
-            // Dropdown to select store from predefined list
-            DropdownMenu(
-                expanded = storeDropdownExpanded,
-                onDismissRequest = { storeDropdownExpanded = false }
-            ) {
-                stores.forEach { store ->
-                    DropdownMenuItem(
-                        text = { Text(store.name) },
-                        onClick = {
-                            // Update selected store and notify MainActivity to re-register geofence
-                            selectedRadius = store.radius
-                            onStoreChanged(store)
-                            storeDropdownExpanded = false
-                        }
-                    )
-                }
-            }
-
-            Text(
-                text = "Radius: ${selectedRadius.toInt()}m",
-                style = MaterialTheme.typography.bodySmall
-            )
-
-            // Temporary radius options; TODO later these will update and re-register the geofence
-            Spacer(modifier = Modifier.height(8.dp))
-
-            Row(
-                horizontalArrangement = Arrangement.spacedBy(8.dp)
-            ) {
-                listOf(50f, 100f, 200f, 500f).forEach { radius ->
-                    Button(
-                        onClick = {
-                            // Update selected radius when user taps an option
-                            selectedRadius = radius
-                            onRadiusChanged(radius)
-                        }
-                    ) {
-                        Text("${radius.toInt()}m")
-                    }
-                }
-            }
 
             Spacer(modifier = Modifier.height(16.dp))
 

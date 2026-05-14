@@ -61,9 +61,11 @@ class GeofenceBroadcastReceiver : BroadcastReceiver() {
 
            // Opens app when user taps notification
             val openedLabelName = labelNames.firstOrNull() ?: "MAIN"
+            android.util.Log.d("GEOFENCE", "Opening label from notification: $openedLabelName")
 
             val intent = Intent(context, com.applonic.buzzcart.MainActivity::class.java).apply {
                 putExtra("opened_label_name", openedLabelName)
+                flags = Intent.FLAG_ACTIVITY_SINGLE_TOP or Intent.FLAG_ACTIVITY_CLEAR_TOP
             }
 
             val pendingIntent = PendingIntent.getActivity(
