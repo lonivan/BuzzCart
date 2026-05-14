@@ -166,6 +166,13 @@ class MainActivity : ComponentActivity() {
             val savedLabels by settingsDataStore.labelsFlow
                 .collectAsState(initial = "")
             val persistedLabels = buildLabelList(savedLabels)
+            LaunchedEffect(persistedLabels) {
+                registerGeofencesForLabels(
+                    labels = persistedLabels,
+                    geofenceManager = geofenceManager,
+                    geofencingClient = geofencingClient
+                )
+            }
 
             BuzzCartApp(
                 repository = repository,
