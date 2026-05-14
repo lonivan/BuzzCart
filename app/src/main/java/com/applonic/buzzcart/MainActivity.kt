@@ -239,8 +239,30 @@ fun BuzzCartApp(
         mutableStateOf<Job?>(null)
     }
 
+    var showCreateLabelDialog by remember {
+        mutableStateOf(false)
+    }
+
+    var newLabelName by remember {
+        mutableStateOf("")
+    }
+    var newLabelLat by remember {
+        mutableStateOf("")
+    }
+
+    var newLabelLng by remember {
+        mutableStateOf("")
+    }
+
+    var newLabelRadius by remember {
+        mutableStateOf("100")
+    }
+
+
     // Temporary store chips (TODO later these become real labels)
-    val shoppingLabels = listOf(
+    var shoppingLabels by remember {
+        mutableStateOf(
+        listOf(
 
         ShoppingLabel(
             name = "MAIN",
@@ -276,7 +298,7 @@ fun BuzzCartApp(
                 StoreLocation("OBI", 37.425, -122.081, 100f)
             )
         )
-    )
+    ))}
     // UI state for currently selected store
     var selectedLabel by remember {
         mutableStateOf(shoppingLabels.first())
@@ -411,6 +433,18 @@ fun BuzzCartApp(
                                 MaterialTheme.colorScheme.onPrimary
                             }
                         )
+                    )
+                }
+
+                item {
+                    FilterChip(
+                        selected = false,
+                        onClick = {
+                            showCreateLabelDialog = true
+                        },
+                        label = {
+                            Text("+")
+                        }
                     )
                 }
             }
@@ -648,5 +682,112 @@ fun BuzzCartApp(
                 }
             }
         }
+    }
+    if (showCreateLabelDialog) {
+
+        AlertDialog(
+            onDismissRequest = {
+                showCreateLabelDialog = false
+                newLabelName = ""
+            },
+
+            title = {
+                Text("Create label")
+            },
+
+            text = {
+                Column(
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    OutlinedTextField(
+                        value = newLabelName,
+                        onValueChange = { newLabelName = it },
+                        singleLine = true,
+                        placeholder = {
+                            Text("Label name")
+                        }
+                    )
+
+                    OutlinedTextField(
+                        value = newLabelLat,
+                        onValueChange = { newLabelLat = it },
+                        singleLine = true,
+                        placeholder = {
+                            Text("Latitude (optional)")
+                        }
+                    )
+
+                    OutlinedTextField(
+                        value = newLabelLng,
+                        onValueChange = { newLabelLng = it },
+                        singleLine = true,
+                        placeholder = {
+                            Text("Longitude (optional)")
+                        }
+                    )
+
+                    OutlinedTextField(
+                        value = newLabelRadius,
+                        onValueChange = { newLabelRadius = it },
+                        singleLine = true,
+                        placeholder = {
+                            Text("Radius in meters")
+                        }
+                    )
+                }
+            },
+
+            confirmButton = {
+                TextButton(
+                    onClick = {
+
+                        val trimmedName = newLabelName.trim()
+                        val lat = newLabelLat.toDoubleOrNull()
+                        val lng = newLabelLng.toDoubleOrNull()
+                        val radius = newLabelRadius.toFloatOrNull() ?: 100f
+
+                        if (trimmedName.isNotBlank()) {
+                            val stores =
+                                if (lat != null && lng != null) {
+                                    listOf(
+                                        StoreLocation(
+                                            name = trimmedName,
+                                            lat = lat,
+                                            lng = lng,
+                                            radius = radius
+                                        )
+                                    )
+                                } else {
+                                    emptyList()
+                                }
+
+                            shoppingLabels = shoppingLabels + ShoppingLabel(
+                                name = trimmedName,
+                                stores = stores
+                            )
+
+                            showCreateLabelDialog = false
+                            newLabelName = ""
+                            newLabelLat = ""
+                            newLabelLng = ""
+                            newLabelRadius = "100"
+                        }
+                    }
+                ) {
+                    Text("Create")
+                }
+            },
+
+            dismissButton = {
+                TextButton(
+                    onClick = {
+                        showCreateLabelDialog = false
+                        newLabelName = ""
+                    }
+                ) {
+                    Text("Cancel")
+                }
+            }
+        )
     }
 }
