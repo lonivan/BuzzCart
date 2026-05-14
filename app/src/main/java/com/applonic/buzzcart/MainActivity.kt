@@ -66,16 +66,37 @@ class MainActivity : ComponentActivity() {
             if (granted) {
                 //register the geofence
                 @SuppressLint("MissingPermission")
+                // Initial geofence registration now happens from setContent after labels are loaded
+                android.util.Log.d("GEOFENCE", "Location permission granted")
+            }
+        }
+
+    @SuppressLint("MissingPermission")
+    private fun registerGeofencesForLabels(
+        labels: List<ShoppingLabel>,
+        geofenceManager: GeofenceManager,
+        geofencingClient: GeofencingClient
+    ) {
+        labels.forEach { label ->
+            label.stores.forEach { store ->
+
+                val geofence = geofenceManager.createGeofence(
+                    id = "${label.name}_${store.name}",
+                    lat = store.lat,
+                    lng = store.lng,
+                    radius = store.radius
+                )
+
+                val geofenceRequest = geofenceManager.createRequest(geofence)
+                val geofencePendingIntent = geofenceManager.createPendingIntent()
+
                 geofencingClient.addGeofences(
                     geofenceRequest,
                     geofencePendingIntent
-                ).addOnSuccessListener {
-                    android.util.Log.d("GEOFENCE", "Geofence registered successfully")
-                }.addOnFailureListener { exception ->
-                    android.util.Log.e("GEOFENCE", "Geofence registration failed", exception)
-                }
+                )
             }
         }
+    }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -144,6 +165,7 @@ class MainActivity : ComponentActivity() {
             )
             val savedLabels by settingsDataStore.labelsFlow
                 .collectAsState(initial = "")
+            val persistedLabels = buildLabelList(savedLabels)
 
             BuzzCartApp(
                 repository = repository,
@@ -172,9 +194,10 @@ class MainActivity : ComponentActivity() {
                     geofenceRequest = geofenceManager.createRequest(geofence)
 
                     @SuppressLint("MissingPermission")
-                    geofencingClient.addGeofences(
-                        geofenceRequest,
-                        geofencePendingIntent
+                    registerGeofencesForLabels(
+                        labels = persistedLabels,
+                        geofenceManager = geofenceManager,
+                        geofencingClient = geofencingClient
                     )
                 },
                 onLabelsChanged = { labels ->
@@ -206,19 +229,10 @@ class MainActivity : ComponentActivity() {
                             radius = selectedStore.radius
                         )
                     }
-                    val geofence = geofenceManager.createGeofence(
-                        id = selectedStore.name,
-                        lat = selectedStore.lat,
-                        lng = selectedStore.lng,
-                        radius = selectedStore.radius
-                    )
-
-                    geofenceRequest = geofenceManager.createRequest(geofence)
-
-                    @SuppressLint("MissingPermission")
-                    geofencingClient.addGeofences(
-                        geofenceRequest,
-                        geofencePendingIntent
+                    registerGeofencesForLabels(
+                        labels = persistedLabels,
+                        geofenceManager = geofenceManager,
+                        geofencingClient = geofencingClient
                     )
                 }
 
