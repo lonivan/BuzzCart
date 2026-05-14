@@ -22,19 +22,19 @@ class GeofenceBroadcastReceiver : BroadcastReceiver() {
             val notificationManager =
                 context.getSystemService(android.app.NotificationManager::class.java)
 
+            val triggeringGeofences = geofencingEvent.triggeringGeofences
+            val labelNames = triggeringGeofences
+                ?.mapNotNull { geofence ->
+                    geofence.requestId.substringBefore("_")
+                }
+                ?: emptyList()
+
             val items = runBlocking {
                 val db = Room.databaseBuilder(
                     context.applicationContext,
                     BuzzCartDatabase::class.java,
                     "buzzcart_db"
                 ).build()
-
-                val triggeringGeofences = geofencingEvent.triggeringGeofences
-                val labelNames = triggeringGeofences
-                    ?.mapNotNull { geofence ->
-                        geofence.requestId.substringBefore("_")
-                    }
-                    ?: emptyList()
 
                 db.cartItemDao()
                     .getUncheckedItemsOnce()
@@ -47,6 +47,10 @@ class GeofenceBroadcastReceiver : BroadcastReceiver() {
                     }
             }
 
+            if (items.isEmpty()) {
+                return
+            }
+
             val itemText = if (items.isEmpty()) {
                 "Your shopping list is empty."
             } else {
@@ -56,7 +60,11 @@ class GeofenceBroadcastReceiver : BroadcastReceiver() {
             }
 
            // Opens app when user taps notification
-            val intent = Intent(context, com.applonic.buzzcart.MainActivity::class.java)
+            val openedLabelName = labelNames.firstOrNull() ?: "MAIN"
+
+            val intent = Intent(context, com.applonic.buzzcart.MainActivity::class.java).apply {
+                putExtra("opened_label_name", openedLabelName)
+            }
 
             val pendingIntent = PendingIntent.getActivity(
                 context,

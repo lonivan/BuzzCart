@@ -152,6 +152,8 @@ class MainActivity : ComponentActivity() {
 
         val settingsDataStore = SettingsDataStore(applicationContext)
 
+        val openedLabelName = intent.getStringExtra("opened_label_name")
+
         setContent {
             // Observe saved store and radius from DataStore
             val savedSettings by settingsDataStore
@@ -178,6 +180,7 @@ class MainActivity : ComponentActivity() {
                 repository = repository,
                 storeLocation = savedStore,
                 savedLabels = savedLabels,
+                openedLabelName = openedLabelName,
                 // Re-create and register geofence with updated radius
                 onRadiusChanged = { newRadius ->
                     // Persist selected radius
@@ -196,6 +199,7 @@ class MainActivity : ComponentActivity() {
                         lng = updatedStore.lng,
                         radius = updatedStore.radius
                     )
+
 
 
                     geofenceRequest = geofenceManager.createRequest(geofence)
@@ -303,6 +307,7 @@ fun BuzzCartApp(
     repository: CartItemRepository,
     storeLocation: StoreLocation,
     savedLabels: String,
+    openedLabelName: String?,
     onRadiusChanged: (Float) -> Unit, // Callback used to notify MainActivity when user selects a new radius
     onStoreChanged: (StoreLocation) -> Unit, // Callback to notify MainActivity when user selects a different store
     onLabelsChanged: (List<ShoppingLabel>) -> Unit
