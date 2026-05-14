@@ -37,8 +37,11 @@ import com.applonic.buzzcart.model.CartItem
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.runtime.remember
 import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.material.icons.Icons
 import androidx.compose.material3.SnackbarDuration
+import androidx.compose.ui.Alignment
 import kotlinx.coroutines.Job
+import androidx.compose.material.icons.filled.Settings
 
 class MainActivity : ComponentActivity() {
     private lateinit var geofencingClient: GeofencingClient
@@ -224,7 +227,7 @@ class MainActivity : ComponentActivity() {
                 },
                 onLabelsChanged = { labels ->
 
-                    val defaultNames = setOf("MAIN", "REWE", "ALDI", "EDEKA", "LIDL", "OBI")
+                    val defaultNames = setOf("MAIN")
 
                     val customLabelsText = labels
                         .filter { it.name !in defaultNames }
@@ -266,12 +269,7 @@ class MainActivity : ComponentActivity() {
 fun buildLabelList(savedLabels: String): List<ShoppingLabel> {
 
     val defaultLabels = listOf(
-        ShoppingLabel("MAIN", emptyList()),
-        ShoppingLabel("REWE", emptyList()),
-        ShoppingLabel("ALDI", emptyList()),
-        ShoppingLabel("EDEKA", emptyList()),
-        ShoppingLabel("LIDL", emptyList()),
-        ShoppingLabel("OBI", emptyList())
+        ShoppingLabel("MAIN", emptyList())
     )
 
     if (savedLabels.isBlank()) {
@@ -373,6 +371,21 @@ fun BuzzCartApp(
             buildLabelList(savedLabels)
         )
     }
+    var showListSettingsDialog by remember {
+        mutableStateOf(false)
+    }
+    var editLat by remember {
+        mutableStateOf("")
+    }
+    var editLng by remember {
+        mutableStateOf("")
+    }
+    var editRadius by remember {
+        mutableStateOf("100")
+    }
+    var showLocationSettingsDialog by remember {
+        mutableStateOf(false)
+    }
 
     /*
     // Temporary store chips (TODO later these become real labels)
@@ -462,20 +475,44 @@ fun BuzzCartApp(
                 .padding(paddingValues)
                 .padding(horizontal = 20.dp, vertical = 16.dp)
         ) {
-            Column(
-                modifier = Modifier.padding(bottom = 16.dp)
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(bottom = 16.dp),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
             ) {
 
-                Text(
-                    text = "${selectedLabel.name} list",
-                    style = MaterialTheme.typography.headlineLarge
-                )
+                Column {
 
-                Text(
-                    text = "Items connected to nearby stores and labels.",
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
+                    Text(
+                        text = selectedLabel.name,
+                        style = MaterialTheme.typography.headlineLarge
+                    )
+
+                    Text(
+                        text = "Items connected to nearby stores and labels.",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+
+                IconButton(
+                    onClick = {
+                        val firstStore = selectedLabel.stores.firstOrNull()
+
+                        editLat = firstStore?.lat?.toString() ?: ""
+                        editLng = firstStore?.lng?.toString() ?: ""
+                        editRadius = firstStore?.radius?.toString() ?: "100"
+
+                        showListSettingsDialog = true
+                    }
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Settings,
+                        contentDescription = "List settings"
+                    )
+                }
             }
 
 
@@ -876,4 +913,191 @@ fun BuzzCartApp(
             }
         )
     }
+    if (showListSettingsDialog) {
+
+        AlertDialog(
+            onDismissRequest = {
+                showListSettingsDialog = false
+            },
+
+            title = {
+                Text("${selectedLabel.name} settings")
+            },
+
+            text = {
+
+                Column {
+
+
+                    Spacer(modifier = Modifier.height(16.dp))
+
+                    TextButton(
+                        enabled = selectedLabel.name != "MAIN",
+                        onClick = {
+                            showListSettingsDialog = false
+                            showLocationSettingsDialog = true
+                        }
+                    ) {
+                        Text("Set location")
+                    }
+
+                    TextButton(
+                        enabled = selectedLabel.name != "MAIN",
+                        onClick = {
+                            shoppingLabels = shoppingLabels.filter {
+                                it.name != selectedLabel.name
+                            }
+
+                            onLabelsChanged(shoppingLabels)
+
+                            selectedLabel = shoppingLabels.first()
+
+                            showListSettingsDialog = false
+                        }
+                    ) {
+                        Text("Delete list")
+                    }
+                }
+            },
+
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        val lat = editLat.toDoubleOrNull()
+                        val lng = editLng.toDoubleOrNull()
+                        val radius = editRadius.toFloatOrNull() ?: 100f
+
+                        val updatedStores =
+                            if (lat != null && lng != null) {
+                                listOf(
+                                    StoreLocation(
+                                        name = selectedLabel.name,
+                                        lat = lat,
+                                        lng = lng,
+                                        radius = radius
+                                    )
+                                )
+                            } else {
+                                emptyList()
+                            }
+
+                        val updatedLabel = selectedLabel.copy(
+                            stores = updatedStores
+                        )
+
+                        val updatedLabels = shoppingLabels.map { label ->
+                            if (label.name == selectedLabel.name) updatedLabel else label
+                        }
+
+                        shoppingLabels = updatedLabels
+                        selectedLabel = updatedLabel
+                        onLabelsChanged(updatedLabels)
+
+                        showListSettingsDialog = false
+                    }
+                ) {
+                    Text("Close")
+                }
+            }
+        )
+    }
+    if (showLocationSettingsDialog) {
+
+        AlertDialog(
+            onDismissRequest = {
+                showLocationSettingsDialog = false
+            },
+
+            title = {
+                Text("${selectedLabel.name} location")
+            },
+
+            text = {
+                Column {
+
+                    OutlinedTextField(
+                        value = editLat,
+                        onValueChange = { editLat = it },
+                        singleLine = true,
+                        placeholder = {
+                            Text("Latitude")
+                        }
+                    )
+
+                    Spacer(modifier = Modifier.height(8.dp))
+
+                    OutlinedTextField(
+                        value = editLng,
+                        onValueChange = { editLng = it },
+                        singleLine = true,
+                        placeholder = {
+                            Text("Longitude")
+                        }
+                    )
+
+                    Spacer(modifier = Modifier.height(8.dp))
+
+                    OutlinedTextField(
+                        value = editRadius,
+                        onValueChange = { editRadius = it },
+                        singleLine = true,
+                        placeholder = {
+                            Text("Radius in meters")
+                        }
+                    )
+                }
+            },
+
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        val lat = editLat.toDoubleOrNull()
+                        val lng = editLng.toDoubleOrNull()
+                        val radius = editRadius.toFloatOrNull() ?: 100f
+
+                        val updatedStores =
+                            if (lat != null && lng != null) {
+                                listOf(
+                                    StoreLocation(
+                                        name = selectedLabel.name,
+                                        lat = lat,
+                                        lng = lng,
+                                        radius = radius
+                                    )
+                                )
+                            } else {
+                                emptyList()
+                            }
+
+                        val updatedLabel = selectedLabel.copy(
+                            stores = updatedStores
+                        )
+
+                        val updatedLabels = shoppingLabels.map { label ->
+                            if (label.name == selectedLabel.name) updatedLabel else label
+                        }
+
+                        shoppingLabels = updatedLabels
+                        selectedLabel = updatedLabel
+                        onLabelsChanged(updatedLabels)
+
+                        showLocationSettingsDialog = false
+                    }
+                ) {
+                    Text("Save")
+                }
+            },
+
+            dismissButton = {
+                TextButton(
+                    onClick = {
+                        showLocationSettingsDialog = false
+                    }
+                ) {
+                    Text("Cancel")
+                }
+            }
+        )
+    }
+
 }
