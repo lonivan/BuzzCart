@@ -142,10 +142,13 @@ class MainActivity : ComponentActivity() {
                 name = savedSettings.first,
                 radius = savedSettings.second
             )
+            val savedLabels by settingsDataStore.labelsFlow
+                .collectAsState(initial = "")
 
             BuzzCartApp(
                 repository = repository,
                 storeLocation = savedStore,
+                savedLabels = savedLabels,
                 // Re-create and register geofence with updated radius
                 onRadiusChanged = { newRadius ->
                     // Persist selected radius
@@ -173,6 +176,26 @@ class MainActivity : ComponentActivity() {
                         geofenceRequest,
                         geofencePendingIntent
                     )
+                },
+                onLabelsChanged = { labels ->
+
+                    val defaultNames = setOf("MAIN", "REWE", "ALDI", "EDEKA", "LIDL", "OBI")
+
+                    val customLabelsText = labels
+                        .filter { it.name !in defaultNames }
+                        .joinToString("|") { label ->
+                            val store = label.stores.firstOrNull()
+
+                            if (store != null) {
+                                "${label.name};${store.lat};${store.lng};${store.radius}"
+                            } else {
+                                label.name
+                            }
+                        }
+
+                    lifecycleScope.launch {
+                        settingsDataStore.saveLabels(customLabelsText)
+                    }
                 },
                 // Re-create and register geofence for newly selected store
                 onStoreChanged = { selectedStore ->
@@ -204,14 +227,64 @@ class MainActivity : ComponentActivity() {
     }
 }
 
+fun buildLabelList(savedLabels: String): List<ShoppingLabel> {
 
+    val defaultLabels = listOf(
+        ShoppingLabel("MAIN", emptyList()),
+        ShoppingLabel("REWE", emptyList()),
+        ShoppingLabel("ALDI", emptyList()),
+        ShoppingLabel("EDEKA", emptyList()),
+        ShoppingLabel("LIDL", emptyList()),
+        ShoppingLabel("OBI", emptyList())
+    )
+
+    if (savedLabels.isBlank()) {
+        return defaultLabels
+    }
+
+    val customLabels = savedLabels
+        .split("|")
+        .filter { it.isNotBlank() }
+        .map { encodedLabel ->
+
+            val parts = encodedLabel.split(";")
+
+            val name = parts.getOrNull(0).orEmpty()
+            val lat = parts.getOrNull(1)?.toDoubleOrNull()
+            val lng = parts.getOrNull(2)?.toDoubleOrNull()
+            val radius = parts.getOrNull(3)?.toFloatOrNull()
+
+            val stores =
+                if (lat != null && lng != null && radius != null) {
+                    listOf(
+                        StoreLocation(
+                            name = name,
+                            lat = lat,
+                            lng = lng,
+                            radius = radius
+                        )
+                    )
+                } else {
+                    emptyList()
+                }
+
+            ShoppingLabel(
+                name = name,
+                stores = stores
+            )
+        }
+
+    return defaultLabels + customLabels
+}
 @Composable
 @OptIn(ExperimentalFoundationApi::class)
 fun BuzzCartApp(
     repository: CartItemRepository,
     storeLocation: StoreLocation,
+    savedLabels: String,
     onRadiusChanged: (Float) -> Unit, // Callback used to notify MainActivity when user selects a new radius
-    onStoreChanged: (StoreLocation) -> Unit // Callback to notify MainActivity when user selects a different store
+    onStoreChanged: (StoreLocation) -> Unit, // Callback to notify MainActivity when user selects a different store
+    onLabelsChanged: (List<ShoppingLabel>) -> Unit
 ) {
     val viewModel: BuzzCartViewModel =
         viewModel(factory = object : androidx.lifecycle.ViewModelProvider.Factory {
@@ -258,7 +331,13 @@ fun BuzzCartApp(
         mutableStateOf("100")
     }
 
+    var shoppingLabels by remember(savedLabels) {
+        mutableStateOf(
+            buildLabelList(savedLabels)
+        )
+    }
 
+    /*
     // Temporary store chips (TODO later these become real labels)
     var shoppingLabels by remember {
         mutableStateOf(
@@ -298,7 +377,7 @@ fun BuzzCartApp(
                 StoreLocation("OBI", 37.425, -122.081, 100f)
             )
         )
-    ))}
+    ))} */
     // UI state for currently selected store
     var selectedLabel by remember {
         mutableStateOf(shoppingLabels.first())
@@ -761,10 +840,13 @@ fun BuzzCartApp(
                                     emptyList()
                                 }
 
-                            shoppingLabels = shoppingLabels + ShoppingLabel(
+                            val updatedLabels = shoppingLabels + ShoppingLabel(
                                 name = trimmedName,
                                 stores = stores
                             )
+
+                            shoppingLabels = updatedLabels
+                            onLabelsChanged(updatedLabels)
 
                             showCreateLabelDialog = false
                             newLabelName = ""

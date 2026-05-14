@@ -5,6 +5,7 @@ import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.floatPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
+import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
 
 private val Context.dataStore by preferencesDataStore(name = "settings")
@@ -16,6 +17,7 @@ class SettingsDataStore(
     companion object {
         val STORE_NAME_KEY = stringPreferencesKey("store_name")
         val RADIUS_KEY = floatPreferencesKey("radius")
+        val LABELS_KEY = stringPreferencesKey("labels")
     }
 
     suspend fun saveSettings(storeName: String, radius: Float) {
@@ -37,4 +39,16 @@ class SettingsDataStore(
 
         storeName to radius
     }
+
+    suspend fun saveLabels(labels: String) {
+        context.dataStore.edit { preferences ->
+            // Save all labels as encoded text
+            preferences[LABELS_KEY] = labels
+        }
+    }
+
+    val labelsFlow: Flow<String> = context.dataStore.data
+        .map { preferences ->
+            preferences[LABELS_KEY] ?: ""
+        }
 }
