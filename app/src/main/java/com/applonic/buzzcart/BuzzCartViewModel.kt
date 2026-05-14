@@ -16,10 +16,14 @@ class BuzzCartViewModel(
     // Flow emits updates automatically when database changes
     val cartItems: Flow<List<CartItem>> = repository.cartItems
 
-    fun addItem(name: String) {
-        // Run DB operations on background thread
+    fun addItem(name: String, label: String) {
         viewModelScope.launch(Dispatchers.IO) {
-            repository.insert(CartItem(name = name))
+            repository.insert(
+                CartItem(
+                    name = name,
+                    labels = label
+                )
+            )
         }
     }
 

@@ -234,33 +234,33 @@ fun BuzzCartApp(
     val shoppingLabels = listOf(
 
         ShoppingLabel(
+            name = "MAIN",
+            stores = emptyList()
+        ),
+        ShoppingLabel(
             name = "REWE",
             stores = listOf(
                 StoreLocation("REWE", 53.5546, 9.9076, 100f)
             )
         ),
-
         ShoppingLabel(
             name = "ALDI",
             stores = listOf(
                 StoreLocation("ALDI", 53.5552, 9.9287, 100f)
             )
         ),
-
         ShoppingLabel(
             name = "EDEKA",
             stores = listOf(
                 StoreLocation("EDEKA", 53.552904, 9.931791, 100f)
             )
         ),
-
         ShoppingLabel(
             name = "LIDL",
             stores = listOf(
                 StoreLocation("LIDL", 53.551890, 9.935514, 100f)
             )
         ),
-
         ShoppingLabel(
             name = "OBI",
             stores = listOf(
@@ -330,18 +330,21 @@ fun BuzzCartApp(
 
 
             Spacer(modifier = Modifier.height(12.dp))
+
+
             LazyRow(
                 horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
                 items(shoppingLabels) { shoppingLabel ->
 
+                    val labelAssignedToSelectedItem =
+                        selectedItemForLabeling?.labels
+                            ?.split(",")
+                            ?.contains(shoppingLabel.name) == true
+
                     FilterChip(
                         modifier = Modifier.height(40.dp),
-                        selected =
-                            selectedItemForLabeling?.labels
-                                ?.split(",")
-                                ?.contains(shoppingLabel.name)
-                                    == true,
+                        selected = labelAssignedToSelectedItem,
                         onClick = {
                             selectedItemForLabeling?.let { selectedItem ->
 
@@ -373,8 +376,29 @@ fun BuzzCartApp(
                             Text(shoppingLabel.name)
                         },
                         colors = FilterChipDefaults.filterChipColors(
-                            selectedContainerColor = MaterialTheme.colorScheme.primary,
-                            selectedLabelColor = MaterialTheme.colorScheme.onPrimary
+                            containerColor = if (selectedItemForLabeling != null) {
+                                MaterialTheme.colorScheme.surfaceVariant
+                            } else {
+                                MaterialTheme.colorScheme.surface
+                            },
+
+                            labelColor = if (selectedItemForLabeling != null) {
+                                MaterialTheme.colorScheme.primary
+                            } else {
+                                MaterialTheme.colorScheme.onSurface
+                            },
+
+                            selectedContainerColor = if (selectedItemForLabeling != null) {
+                                MaterialTheme.colorScheme.tertiaryContainer
+                            } else {
+                                MaterialTheme.colorScheme.primary
+                            },
+
+                            selectedLabelColor = if (selectedItemForLabeling != null) {
+                                MaterialTheme.colorScheme.onTertiaryContainer
+                            } else {
+                                MaterialTheme.colorScheme.onPrimary
+                            }
                         )
                     )
                 }
@@ -441,7 +465,10 @@ fun BuzzCartApp(
                 Button(
                     onClick = {
                         if (text.isNotBlank()) {
-                            viewModel.addItem(text)
+                            viewModel.addItem(
+                                name = text,
+                                label = selectedLabel.name
+                            )
                             coroutineScope.launch  {
                                 snackbarHostState.showSnackbar("Item added")
                             }
@@ -456,12 +483,19 @@ fun BuzzCartApp(
 
             Spacer(modifier = Modifier.height(16.dp))
 
-            // Show unchecked first, newest items first inside each group
-            val sortedItems = cartItems
+            // Show items that belong to the currently selected label/list
+            val filteredItems = cartItems.filter { item ->
+                item.labels
+                    .split(",")
+                    .contains(selectedLabel.name)
+            }
+            // Then sort visible items
+            val sortedItems = filteredItems
                 .sortedWith(
                     compareBy<CartItem> { it.isChecked }
                         .thenByDescending { it.id }
                 )
+
             if (sortedItems.isEmpty()) {
                 Card(
                     modifier = Modifier.fillMaxWidth(),
@@ -481,7 +515,7 @@ fun BuzzCartApp(
                     verticalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
                     // Show unchecked first, newest items first inside each group
-                    val sortedItems = cartItems
+                    val sortedItems = filteredItems
                         .sortedWith(
                             compareBy<CartItem> { it.isChecked }
                                 .thenByDescending { it.id }
@@ -546,9 +580,14 @@ fun BuzzCartApp(
                                             }
                                         )
 
-                                        if (item.labels.isNotBlank()) {
+                                        val visibleLabels = item.labels
+                                            .split(",")
+                                            .filter { it.isNotBlank() }
+                                            .filter { it != selectedLabel.name }
+
+                                        if (visibleLabels.isNotEmpty()) {
                                             Text(
-                                                text = item.labels.replace(",", " • "),
+                                                text = visibleLabels.joinToString(" • "),
                                                 style = MaterialTheme.typography.bodySmall,
                                                 color = MaterialTheme.colorScheme.primary
                                             )
