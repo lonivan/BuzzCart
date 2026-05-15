@@ -42,6 +42,7 @@ import androidx.compose.material3.SnackbarDuration
 import androidx.compose.ui.Alignment
 import kotlinx.coroutines.Job
 import androidx.compose.material.icons.filled.Settings
+import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 
 class MainActivity : ComponentActivity() {
     private lateinit var geofencingClient: GeofencingClient
@@ -97,7 +98,18 @@ class MainActivity : ComponentActivity() {
                 geofencingClient.addGeofences(
                     geofenceRequest,
                     geofencePendingIntent
-                )
+                ).addOnSuccessListener {
+                    android.util.Log.d(
+                        "GEOFENCE",
+                        "Registered geofence for ${label.name} / ${store.name}"
+                    )
+                }.addOnFailureListener { error ->
+                    android.util.Log.e(
+                        "GEOFENCE",
+                        "Failed to register geofence for ${label.name} / ${store.name}",
+                        error
+                    )
+                }
             }
         }
     }
@@ -127,7 +139,12 @@ class MainActivity : ComponentActivity() {
             .build()
 
         val dao = db.cartItemDao()
-        val repository = CartItemRepository(dao)
+        val itemNameHistoryDao = db.itemNameHistoryDao()
+
+        val repository = CartItemRepository(
+            dao,
+            itemNameHistoryDao
+        )
 
         val permissions = mutableListOf(
             android.Manifest.permission.ACCESS_FINE_LOCATION,
@@ -328,6 +345,8 @@ fun BuzzCartApp(
             }
         })
 
+    val keyboardController = LocalSoftwareKeyboardController.current
+
     var text by remember { mutableStateOf("") }
     val cartItems by viewModel.cartItems.collectAsState(initial = emptyList())
     // UI state for currently selected radius option
@@ -385,6 +404,10 @@ fun BuzzCartApp(
     }
     var showLocationSettingsDialog by remember {
         mutableStateOf(false)
+    }
+
+    var itemSuggestions by remember {
+        mutableStateOf<List<String>>(emptyList())
     }
 
     /*
@@ -619,13 +642,27 @@ fun BuzzCartApp(
             ) {
                 OutlinedTextField(
                     value = text,
-                    onValueChange = { text = it },
+                    onValueChange = { newText ->
+                        text = newText
+
+                        coroutineScope.launch {
+                            itemSuggestions = viewModel
+                                .getRemovedItemNamesOnce()
+                                .filter { name ->
+                                    name.startsWith(newText, ignoreCase = true) &&
+                                            name != newText
+                                }
+                                .take(5)
+                        }
+                    },
                     modifier = Modifier.weight(1f),
                     placeholder = {
                         Text("Add item to ${selectedLabel.name}")
                     },
                     singleLine = true
                 )
+
+
 
                 Spacer(modifier = Modifier.width(8.dp))
 
@@ -641,11 +678,37 @@ fun BuzzCartApp(
                                 snackbarHostState.showSnackbar("$itemName added")
                             }
                             text = ""
+                            keyboardController?.hide()
                         }
                     },
                     shape = MaterialTheme.shapes.medium
                 ) {
                     Text("Add")
+                }
+            }
+            if (itemSuggestions.isNotEmpty()) {
+                Card(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(top = 4.dp),
+                    shape = MaterialTheme.shapes.medium,
+                    colors = CardDefaults.cardColors(
+                        containerColor = MaterialTheme.colorScheme.surfaceVariant
+                    )
+                ) {
+                    Column {
+                        itemSuggestions.forEach { suggestion ->
+                            TextButton(
+                                modifier = Modifier.fillMaxWidth(),
+                                onClick = {
+                                    text = suggestion
+                                    itemSuggestions = emptyList()
+                                }
+                            ) {
+                                Text(suggestion)
+                            }
+                        }
+                    }
                 }
             }
 

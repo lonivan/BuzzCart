@@ -18,6 +18,8 @@ class GeofenceBroadcastReceiver : BroadcastReceiver() {
 
     @SuppressLint("UseKtx")
     override fun onReceive(context: Context, intent: Intent) {
+        android.util.Log.d("GEOFENCE", "GeofenceBroadcastReceiver received event")
+
         val geofencingEvent = GeofencingEvent.fromIntent(intent) ?: return
 
         if (geofencingEvent.hasError()) return
@@ -38,13 +40,14 @@ class GeofenceBroadcastReceiver : BroadcastReceiver() {
             val openedLabelName = labelNames.firstOrNull() ?: "MAIN"
             android.util.Log.d("GEOFENCE", "Opening label from notification: $openedLabelName")
 
-            // Prevent repeated notifications for the same label within 30 minutes
+            // Prevent repeated notifications for the same label within 2 minutes
             val preferences = context.getSharedPreferences("notification_state", Context.MODE_PRIVATE)
             val lastNotificationTime = preferences.getLong(openedLabelName, 0L)
-            val currentTime = System.currentTimeMillis()
-            if (currentTime - lastNotificationTime < 30 * 60 * 1000) {
-                return
-            }
+
+//            val currentTime = System.currentTimeMillis()
+//            if (currentTime - lastNotificationTime < 1 * 60 * 1000) {
+//                return
+//            }
 
 
             val items = runBlocking {
@@ -108,12 +111,12 @@ class GeofenceBroadcastReceiver : BroadcastReceiver() {
                 .build()
 
             // Remember when this label last showed a notification
-            preferences.edit()
+            /*preferences.edit()
                 .putLong(openedLabelName, currentTime)
-                .apply()
+                .apply()*/
 
             notificationManager.notify(1, notification)
-            }
+        }
     }
 
 

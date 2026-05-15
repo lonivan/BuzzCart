@@ -27,7 +27,10 @@ class GeofenceManager(
         return Geofence.Builder()
             .setRequestId(id)
             .setCircularRegion(lat, lng, radius)
-            .setTransitionTypes(Geofence.GEOFENCE_TRANSITION_ENTER)
+            .setTransitionTypes(
+                Geofence.GEOFENCE_TRANSITION_ENTER or
+                        Geofence.GEOFENCE_TRANSITION_EXIT
+            )
             .setLoiteringDelay(60_000)
             .setExpirationDuration(Geofence.NEVER_EXPIRE)
             .build()
@@ -35,10 +38,7 @@ class GeofenceManager(
 
     fun createRequest(geofence: Geofence): GeofencingRequest {
         return GeofencingRequest.Builder()
-            .setInitialTrigger(
-                GeofencingRequest.INITIAL_TRIGGER_ENTER or
-                        GeofencingRequest.INITIAL_TRIGGER_DWELL
-            )
+            .setInitialTrigger(GeofencingRequest.INITIAL_TRIGGER_ENTER)
             .addGeofence(geofence)
             .build()
     }

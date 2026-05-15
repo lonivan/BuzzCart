@@ -18,6 +18,7 @@ class BuzzCartViewModel(
 
     fun addItem(name: String, label: String) {
         viewModelScope.launch(Dispatchers.IO) {
+            repository.removeItemNameFromHistory(name)
             repository.insert(
                 CartItem(
                     name = name,
@@ -34,6 +35,7 @@ class BuzzCartViewModel(
 
     fun deleteItem(item: CartItem) {
         viewModelScope.launch(Dispatchers.IO) {
+            repository.saveRemovedItemName(item.name)
             repository.delete(item)
         }
     }
@@ -67,5 +69,9 @@ class BuzzCartViewModel(
         viewModelScope.launch(Dispatchers.IO) {
             repository.update(item)
         }
+    }
+
+    suspend fun getRemovedItemNamesOnce(): List<String> {
+        return repository.getRemovedItemNamesOnce()
     }
 }

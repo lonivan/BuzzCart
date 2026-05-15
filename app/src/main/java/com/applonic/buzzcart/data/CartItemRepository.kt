@@ -5,7 +5,8 @@ import kotlinx.coroutines.flow.Flow
 
 // Single source of data operations (Room for now, can add API later)
 class CartItemRepository(
-    private val dao: CartItemDao
+    private val dao: CartItemDao,
+    private val itemNameHistoryDao: ItemNameHistoryDao
 ) {
     val cartItems: Flow<List<CartItem>> = dao.getAll()
 
@@ -19,5 +20,23 @@ class CartItemRepository(
 
     suspend fun update(item: CartItem) {
         dao.update(item)
+    }
+
+    suspend fun getAllItemNamesOnce(): List<String> {
+        return dao.getAllItemNamesOnce()
+    }
+
+    suspend fun saveRemovedItemName(name: String) {
+        itemNameHistoryDao.insert(
+            ItemNameHistory(name)
+        )
+    }
+
+    suspend fun getRemovedItemNamesOnce(): List<String> {
+        return itemNameHistoryDao.getAllNamesOnce()
+    }
+
+    suspend fun removeItemNameFromHistory(name: String) {
+        itemNameHistoryDao.deleteByName(name)
     }
 }

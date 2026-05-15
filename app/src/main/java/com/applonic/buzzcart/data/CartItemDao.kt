@@ -21,4 +21,7 @@ interface CartItemDao {
 
     @Query("SELECT * FROM cart_items WHERE isChecked = 0")
     suspend fun getUncheckedItemsOnce(): List<CartItem>
+
+    @Query("SELECT DISTINCT name FROM cart_items ORDER BY name ASC")
+    suspend fun getAllItemNamesOnce(): List<String>
 }
