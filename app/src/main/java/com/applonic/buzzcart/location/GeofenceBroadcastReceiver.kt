@@ -1,5 +1,6 @@
 package com.applonic.buzzcart.location
 
+import android.annotation.SuppressLint
 import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
@@ -11,8 +12,11 @@ import com.applonic.buzzcart.data.BuzzCartDatabase
 import android.app.PendingIntent
 
 
+
+
 class GeofenceBroadcastReceiver : BroadcastReceiver() {
 
+    @SuppressLint("UseKtx")
     override fun onReceive(context: Context, intent: Intent) {
         val geofencingEvent = GeofencingEvent.fromIntent(intent) ?: return
 
@@ -23,11 +27,25 @@ class GeofenceBroadcastReceiver : BroadcastReceiver() {
                 context.getSystemService(android.app.NotificationManager::class.java)
 
             val triggeringGeofences = geofencingEvent.triggeringGeofences
+
             val labelNames = triggeringGeofences
                 ?.mapNotNull { geofence ->
                     geofence.requestId.substringBefore("_")
                 }
                 ?: emptyList()
+
+            // Opens app when user taps notification
+            val openedLabelName = labelNames.firstOrNull() ?: "MAIN"
+            android.util.Log.d("GEOFENCE", "Opening label from notification: $openedLabelName")
+
+            // Prevent repeated notifications for the same label within 30 minutes
+            val preferences = context.getSharedPreferences("notification_state", Context.MODE_PRIVATE)
+            val lastNotificationTime = preferences.getLong(openedLabelName, 0L)
+            val currentTime = System.currentTimeMillis()
+            if (currentTime - lastNotificationTime < 30 * 60 * 1000) {
+                return
+            }
+
 
             val items = runBlocking {
                 val db = Room.databaseBuilder(
@@ -51,17 +69,18 @@ class GeofenceBroadcastReceiver : BroadcastReceiver() {
                 return
             }
 
-            val itemText = if (items.isEmpty()) {
-                "Your shopping list is empty."
-            } else {
-                items.mapIndexed { index, item ->
-                    "${index + 1}. ${item.name}"
-                }.joinToString("\n")
-            }
+            // Limit notification size to keep it readable
+            val visibleNotificationItems = items.take(5)
+            val hiddenItemCount = items.size - visibleNotificationItems.size
+            val itemText = buildString {
+                visibleNotificationItems.forEach { item ->
+                    appendLine("• ${item.name}")
+                }
 
-           // Opens app when user taps notification
-            val openedLabelName = labelNames.firstOrNull() ?: "MAIN"
-            android.util.Log.d("GEOFENCE", "Opening label from notification: $openedLabelName")
+                if (hiddenItemCount > 0) {
+                    append("+ $hiddenItemCount more")
+                }
+            }
 
             val intent = Intent(context, com.applonic.buzzcart.MainActivity::class.java).apply {
                 putExtra("opened_label_name", openedLabelName)
@@ -77,8 +96,8 @@ class GeofenceBroadcastReceiver : BroadcastReceiver() {
 
             // notification builder
             val notification = android.app.Notification.Builder(context, "buzzcart_location_reminders")
-                .setContentTitle("You are near a store")
-                .setContentText("Check your shopping list")
+                .setContentTitle("You're near $openedLabelName")
+                .setContentText("${items.size} item(s) waiting")
                 .setStyle(
                     android.app.Notification.BigTextStyle()
                         .bigText("Buy:\n$itemText")
@@ -88,7 +107,14 @@ class GeofenceBroadcastReceiver : BroadcastReceiver() {
                 .setAutoCancel(true) // removes notification after tap
                 .build()
 
+            // Remember when this label last showed a notification
+            preferences.edit()
+                .putLong(openedLabelName, currentTime)
+                .apply()
+
             notificationManager.notify(1, notification)
-        }
+            }
     }
+
+
 }
